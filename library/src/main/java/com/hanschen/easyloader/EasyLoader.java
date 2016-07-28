@@ -27,7 +27,6 @@ public class EasyLoader {
     }
 
     private void apply(final Builder builder) {
-
     }
 
     static class Builder {
