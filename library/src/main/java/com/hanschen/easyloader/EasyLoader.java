@@ -4,6 +4,12 @@ import android.content.Context;
 import android.graphics.Bitmap;
 import android.support.annotation.NonNull;
 
+import com.hanschen.easyloader.cache.CacheManager;
+import com.hanschen.easyloader.callback.OnLoadListener;
+import com.hanschen.easyloader.log.Logger;
+
+import java.util.concurrent.ExecutorService;
+
 /**
  * Created by Hans.Chen on 2016/7/27.
  */
@@ -31,10 +37,14 @@ public class EasyLoader {
 
     static class Builder {
 
-        private final Context       context;
-        private       CacheManager  memoryCacheManager;
-        private       CacheManager  diskCacheManager;
-        private       Bitmap.Config defaultBitmapConfig;
+        private final Context         context;
+        private       boolean         logEnable;
+        private       CacheManager    memoryCacheManager;
+        private       CacheManager    diskCacheManager;
+        private       Logger          logger;
+        private       OnLoadListener  listener;
+        private       ExecutorService service;
+        private       Bitmap.Config   defaultBitmapConfig;
 
         public Builder(Context context) {
             if (context == null) {

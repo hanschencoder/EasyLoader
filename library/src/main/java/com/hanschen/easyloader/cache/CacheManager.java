@@ -1,4 +1,4 @@
-package com.hanschen.easyloader;
+package com.hanschen.easyloader.cache;
 
 /**
  * Created by Hans.Chen on 2016/7/28.
