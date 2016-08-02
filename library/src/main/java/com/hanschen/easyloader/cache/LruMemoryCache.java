@@ -1,40 +1,39 @@
 package com.hanschen.easyloader.cache;
 
-import android.support.v4.util.LruCache;
-
 import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
  * Created by Hans.Chen on 2016/8/1.
  */
-public class LruMemoryCache<T> implements CacheManager<T> {
+public class LruMemoryCache<K, V> implements CacheManager<K, V> {
 
-    private final int                      maxSize;
-    private       int                      hitCount;
-    private       int                      missCount;
-    private       int                      putCount;
-    private       int                      evictionCount;
-    private       int                      size;
-    private final LinkedHashMap<String, T> map;
-    private final ByteCalculator<T>        calculator;
+    private       int                 maxSize;
+    private       int                 hitCount;
+    private       int                 missCount;
+    private       int                 putCount;
+    private       int                 evictionCount;
+    private       int                 size;
+    private final LinkedHashMap<K, V> map;
+    private final SizeCalculator<V>   calculator;
 
-    public LruMemoryCache(int maxSize, ByteCalculator<T> calculator) {
-        if (maxSize <= 0) {
-            throw new IllegalArgumentException("maxSize <= 0");
+    public LruMemoryCache(int maxSize, SizeCalculator<V> calculator) {
+        if (maxSize <= 0 || calculator == null) {
+            throw new IllegalArgumentException("maxSize <= 0 || calculator == null");
         }
         this.maxSize = maxSize;
+        //attention, accessOrder must be true
         this.map = new LinkedHashMap<>(0, 0.75f, true);
         this.calculator = calculator;
     }
 
     @Override
-    public T get(String key) {
+    public V get(K key) {
         if (key == null) {
             throw new NullPointerException("key == null");
         }
 
-        T mapValue;
+        V mapValue;
         synchronized (this) {
             mapValue = map.get(key);
             if (mapValue != null) {
@@ -43,16 +42,17 @@ public class LruMemoryCache<T> implements CacheManager<T> {
             }
             missCount++;
         }
+
         return null;
     }
 
     @Override
-    public void set(String key, T value) {
+    public void put(K key, V value) {
         if (key == null || value == null) {
-            throw new NullPointerException("key == null || bitmap == null");
+            throw new NullPointerException("key == null || value == null");
         }
 
-        int addedSize = calculator.getByteCount(value);
+        int addedSize = calculator.getSizeOf(value);
         if (addedSize > maxSize) {
             return;
         }
@@ -60,9 +60,9 @@ public class LruMemoryCache<T> implements CacheManager<T> {
         synchronized (this) {
             putCount++;
             size += addedSize;
-            T previous = map.put(key, value);
+            V previous = map.put(key, value);
             if (previous != null) {
-                size -= calculator.getByteCount(previous);
+                size -= calculator.getSizeOf(previous);
             }
         }
 
@@ -70,8 +70,36 @@ public class LruMemoryCache<T> implements CacheManager<T> {
     }
 
     @Override
+    public V remove(K key) {
+        if (key == null) {
+            throw new NullPointerException("key == null");
+        }
+
+        V previous;
+        synchronized (this) {
+            previous = map.remove(key);
+            if (previous != null) {
+                size -= calculator.getSizeOf(previous);
+            }
+        }
+        return previous;
+    }
+
+    @Override
     public int size() {
         return size;
+    }
+
+    @Override
+    public void resize(int maxSize) {
+        if (maxSize <= 0) {
+            throw new IllegalArgumentException("maxSize <= 0");
+        }
+
+        synchronized (this) {
+            this.maxSize = maxSize;
+        }
+        trimToSize(maxSize);
     }
 
     @Override
@@ -82,13 +110,12 @@ public class LruMemoryCache<T> implements CacheManager<T> {
     @Override
     public void clear() {
         trimToSize(-1); // -1 will evict 0-sized elements
-        android.util.LruCache
     }
 
     private void trimToSize(int maxSize) {
         while (true) {
-            String key;
-            T value;
+            K key;
+            V value;
             synchronized (this) {
                 if (size < 0 || (map.isEmpty() && size != 0)) {
                     throw new IllegalStateException(getClass().getName() + ".sizeOf() is reporting inconsistent results!");
@@ -98,11 +125,11 @@ public class LruMemoryCache<T> implements CacheManager<T> {
                     break;
                 }
 
-                Map.Entry<String, T> toEvict = map.entrySet().iterator().next();
+                Map.Entry<K, V> toEvict = map.entrySet().iterator().next();
                 key = toEvict.getKey();
                 value = toEvict.getValue();
                 map.remove(key);
-                size -= calculator.getByteCount(value);
+                size -= calculator.getSizeOf(value);
                 evictionCount++;
             }
         }

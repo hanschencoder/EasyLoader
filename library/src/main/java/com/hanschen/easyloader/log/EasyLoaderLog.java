@@ -53,52 +53,56 @@ public class EasyLoaderLog {
         EasyLoaderLog.logEnable = logEnable;
     }
 
+    private static String getTag(String tag) {
+        return "EasyLoader-" + tag;
+    }
+
     public static void v(String tag, String msg) {
         if (!logEnable) {
             return;
         }
-        logger.v(tag, msg);
+        logger.v(getTag(tag), msg);
     }
 
     public static void d(String tag, String msg) {
         if (!logEnable) {
             return;
         }
-        logger.d(tag, msg);
+        logger.d(getTag(tag), msg);
     }
 
     public static void i(String tag, String msg) {
         if (!logEnable) {
             return;
         }
-        logger.i(tag, msg);
+        logger.i(getTag(tag), msg);
     }
 
     public static void w(String tag, String msg) {
         if (!logEnable) {
             return;
         }
-        logger.w(tag, msg);
+        logger.w(getTag(tag), msg);
     }
 
     public static void e(String tag, String msg) {
         if (!logEnable) {
             return;
         }
-        logger.e(tag, msg);
+        logger.e(getTag(tag), msg);
     }
 
     public static void e(String tag, String msg, Throwable t) {
         if (!logEnable) {
             return;
         }
-        logger.e(tag, msg, t);
+        logger.e(getTag(tag), msg, t);
     }
 
     public static void wtf(String tag, String msg) {
         if (!logEnable) {
             return;
         }
-        logger.wtf(tag, msg);
+        logger.wtf(getTag(tag), msg);
     }
 }

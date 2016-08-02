@@ -37,14 +37,14 @@ public class EasyLoader {
 
     static class Builder {
 
-        private final Context         context;
-        private       boolean         logEnable;
-        private       CacheManager    memoryCacheManager;
-        private       CacheManager    diskCacheManager;
-        private       Logger          logger;
-        private       OnLoadListener  listener;
-        private       ExecutorService service;
-        private       Bitmap.Config   defaultBitmapConfig;
+        private final Context                      context;
+        private       boolean                      logEnable;
+        private       CacheManager<String, Bitmap> memoryCacheManager;
+        private       CacheManager                 diskCacheManager;
+        private       Logger                       logger;
+        private       OnLoadListener               listener;
+        private       ExecutorService              service;
+        private       Bitmap.Config                defaultBitmapConfig;
 
         public Builder(Context context) {
             if (context == null) {
