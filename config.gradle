@@ -17,6 +17,7 @@ ext {
             supportAnnotations: "com.android.support:support-annotations:$supportLibrariesVersion",
             supportDesign     : "com.android.support:design:$supportLibrariesVersion",
             junit             : 'junit:junit:4.12',
+            commonsCodec      : "commons-codec:commons-codec:1.10",
     ]
 
 

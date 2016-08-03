@@ -26,6 +26,7 @@ android {
 dependencies {
     compile fileTree(dir: 'libs', include: ['*.jar'])
     compile rootProject.ext.dependencies.supportV7
+    compile rootProject.ext.dependencies.commonsCodec
 
     testCompile rootProject.ext.dependencies.junit
 }
