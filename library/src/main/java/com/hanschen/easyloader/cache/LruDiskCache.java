@@ -15,21 +15,21 @@ public class LruDiskCache<V> implements CacheManager<String, V> {
 
     private static final int                  VALUE_COUNT = 1;
     private final        DiskCacheWriteLocker writeLocker = new DiskCacheWriteLocker();
-    
+
     private final File             directory;
-    private final int              maxSize;
+    private final long             maxSize;
     private final int              appVersion;
     private       DiskLruCache     diskLruCache;
     private       FileConverter<V> converter;
 
-    interface FileConverter<V> {
+    public interface FileConverter<V> {
 
         V fileToValue(File file);
 
         boolean writeValue(V value, File to);
     }
 
-    public LruDiskCache(File directory, int maxSize, int appVersion, FileConverter<V> converter) {
+    public LruDiskCache(File directory, long maxSize, int appVersion, FileConverter<V> converter) {
         if (directory == null || maxSize <= 0 || appVersion <= 0 || converter == null) {
             throw new IllegalArgumentException("directory == null || maxSize <= 0 || appVersion <= 0 || converter == null");
         }
@@ -113,7 +113,7 @@ public class LruDiskCache<V> implements CacheManager<String, V> {
     }
 
     @Override
-    public void resize(int maxSize) {
+    public void resize(long maxSize) {
         try {
             getDiskCache().setMaxSize(maxSize);
         } catch (IOException e) {

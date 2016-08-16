@@ -17,7 +17,7 @@ public class LruMemoryCache<K, V> implements CacheManager<K, V> {
     private final LinkedHashMap<K, V> map;
     private final SizeCalculator<V>   calculator;
 
-    public LruMemoryCache(int maxSize, SizeCalculator<V> calculator) {
+    public LruMemoryCache(long maxSize, SizeCalculator<V> calculator) {
         if (maxSize <= 0 || calculator == null) {
             throw new IllegalArgumentException("maxSize <= 0 || calculator == null");
         }
@@ -91,7 +91,7 @@ public class LruMemoryCache<K, V> implements CacheManager<K, V> {
     }
 
     @Override
-    public void resize(int maxSize) {
+    public void resize(long maxSize) {
         if (maxSize <= 0) {
             throw new IllegalArgumentException("maxSize <= 0");
         }

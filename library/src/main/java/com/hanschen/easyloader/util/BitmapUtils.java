@@ -11,7 +11,7 @@ import static android.os.Build.VERSION_CODES.KITKAT;
  */
 public class BitmapUtils {
 
-    static int getBitmapBytes(Bitmap bitmap) {
+    public static int getBitmapBytes(Bitmap bitmap) {
         int result;
         if (SDK_INT >= KITKAT) {
             result = bitmap.getAllocationByteCount();

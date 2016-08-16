@@ -13,7 +13,7 @@ public interface CacheManager<K, V> {
 
     long size();
 
-    void resize(int maxSize);
+    void resize(long maxSize);
 
     long maxSize();
 
