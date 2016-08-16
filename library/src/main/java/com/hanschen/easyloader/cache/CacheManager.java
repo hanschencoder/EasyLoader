@@ -11,11 +11,11 @@ public interface CacheManager<K, V> {
 
     V remove(K key);
 
-    int size();
+    long size();
 
     void resize(int maxSize);
 
-    int maxSize();
+    long maxSize();
 
     void clear();
 

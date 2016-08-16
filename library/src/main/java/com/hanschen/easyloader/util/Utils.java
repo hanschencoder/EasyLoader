@@ -43,16 +43,15 @@ import static android.os.Build.VERSION_CODES.JELLY_BEAN_MR1;
 import static android.os.Build.VERSION_CODES.JELLY_BEAN_MR2;
 import static android.os.Process.THREAD_PRIORITY_BACKGROUND;
 
-final class Utils {
-    private static final int    MIN_DISK_CACHE_SIZE            = 5 * 1024 * 1024; // 5MB
-    private static final int    MAX_DISK_CACHE_SIZE            = 50 * 1024 * 1024; // 50MB
-    static final         int    THREAD_LEAK_CLEANING_MS        = 1000;
+final public class Utils {
+    private static final int MIN_DISK_CACHE_SIZE     = 5 * 1024 * 1024; // 5MB
+    private static final int MAX_DISK_CACHE_SIZE     = 50 * 1024 * 1024; // 50MB
+    static final         int THREAD_LEAK_CLEANING_MS = 1000;
 
     /**
      * Thread confined to main thread for key creation.
      */
     static final StringBuilder MAIN_THREAD_KEY_BUILDER = new StringBuilder();
-
 
 
     /* WebP file header
@@ -75,7 +74,7 @@ final class Utils {
     }
 
 
-    static <T> T checkNotNull(T value, String message) {
+    public static <T> T checkNotNull(T value, String message) {
         if (value == null) {
             throw new NullPointerException(message);
         }

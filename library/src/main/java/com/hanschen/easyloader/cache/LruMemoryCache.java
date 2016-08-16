@@ -4,16 +4,16 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * Created by Hans.Chen on 2016/8/1.
+ * Created by Hans.Chen on 2016/8/15.
  */
 public class LruMemoryCache<K, V> implements CacheManager<K, V> {
 
-    private       int                 maxSize;
+    private       long                maxSize;
     private       int                 hitCount;
     private       int                 missCount;
     private       int                 putCount;
     private       int                 evictionCount;
-    private       int                 size;
+    private       long                size;
     private final LinkedHashMap<K, V> map;
     private final SizeCalculator<V>   calculator;
 
@@ -86,7 +86,7 @@ public class LruMemoryCache<K, V> implements CacheManager<K, V> {
     }
 
     @Override
-    public int size() {
+    public long size() {
         return size;
     }
 
@@ -103,7 +103,7 @@ public class LruMemoryCache<K, V> implements CacheManager<K, V> {
     }
 
     @Override
-    public int maxSize() {
+    public long maxSize() {
         return maxSize;
     }
 
@@ -112,7 +112,7 @@ public class LruMemoryCache<K, V> implements CacheManager<K, V> {
         trimToSize(-1); // -1 will evict 0-sized elements
     }
 
-    private void trimToSize(int maxSize) {
+    private void trimToSize(long maxSize) {
         while (true) {
             K key;
             V value;
