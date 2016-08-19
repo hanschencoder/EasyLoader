@@ -28,6 +28,8 @@ import android.os.Process;
 import android.os.StatFs;
 import android.provider.Settings;
 
+import com.hanschen.easyloader.request.Request;
+
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
@@ -205,5 +207,50 @@ final public class Utils {
         static int getByteCount(Bitmap bitmap) {
             return bitmap.getByteCount();
         }
+    }
+
+    public static String createKey(Request data, StringBuilder builder) {
+
+        final int KEY_PADDING = 50; // Determined by exact science.
+        final char KEY_SEPARATOR = '\n';
+        if (data.stableKey != null) {
+            builder.ensureCapacity(data.stableKey.length() + KEY_PADDING);
+            builder.append(data.stableKey);
+        } else if (data.uri != null) {
+            String path = data.uri.toString();
+            builder.ensureCapacity(path.length() + KEY_PADDING);
+            builder.append(path);
+        } else {
+            builder.ensureCapacity(KEY_PADDING);
+            builder.append(data.resourceId);
+        }
+        builder.append(KEY_SEPARATOR);
+
+        if (data.rotationDegrees != 0) {
+            builder.append("rotation:").append(data.rotationDegrees);
+            if (data.hasRotationPivot) {
+                builder.append('@').append(data.rotationPivotX).append('x').append(data.rotationPivotY);
+            }
+            builder.append(KEY_SEPARATOR);
+        }
+        if (data.hasSize()) {
+            builder.append("resize:").append(data.targetWidth).append('x').append(data.targetHeight);
+            builder.append(KEY_SEPARATOR);
+        }
+        if (data.centerCrop) {
+            builder.append("centerCrop").append(KEY_SEPARATOR);
+        } else if (data.centerInside) {
+            builder.append("centerInside").append(KEY_SEPARATOR);
+        }
+
+        if (data.transformations != null) {
+            //noinspection ForLoopReplaceableByForEach
+            for (int i = 0, count = data.transformations.size(); i < count; i++) {
+                builder.append(data.transformations.get(i).key());
+                builder.append(KEY_SEPARATOR);
+            }
+        }
+
+        return builder.toString();
     }
 }

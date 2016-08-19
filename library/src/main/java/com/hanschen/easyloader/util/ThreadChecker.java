@@ -7,19 +7,19 @@ import android.os.Looper;
  */
 public class ThreadChecker {
 
-    static void checkNotMain() {
+    public static void checkNotMain() {
         if (isMain()) {
             throw new IllegalStateException("Method call should not happen from the main thread.");
         }
     }
 
-    static void checkMain() {
+    public static void checkMain() {
         if (!isMain()) {
             throw new IllegalStateException("Method call should happen from the main thread.");
         }
     }
 
-    static boolean isMain() {
+    public static boolean isMain() {
         return Looper.getMainLooper().getThread() == Thread.currentThread();
     }
 }

@@ -2,6 +2,7 @@ package com.hanschen.easyloader;
 
 import android.content.Context;
 import android.graphics.Bitmap;
+import android.net.Uri;
 import android.support.annotation.NonNull;
 
 import com.hanschen.easyloader.cache.CacheManager;
@@ -9,7 +10,9 @@ import com.hanschen.easyloader.cache.LruDiskCache;
 import com.hanschen.easyloader.cache.LruMemoryCache;
 import com.hanschen.easyloader.cache.SizeCalculator;
 import com.hanschen.easyloader.callback.OnLoadListener;
+import com.hanschen.easyloader.downloader.Downloader;
 import com.hanschen.easyloader.log.Logger;
+import com.hanschen.easyloader.request.RequestCreator;
 import com.hanschen.easyloader.util.AppUtils;
 import com.hanschen.easyloader.util.BitmapUtils;
 
@@ -21,7 +24,9 @@ import java.util.concurrent.ExecutorService;
  */
 public class EasyLoader {
 
-    private volatile static EasyLoader singleton;
+    private volatile static EasyLoader    singleton;
+    private                 Context       context;
+    private                 Bitmap.Config bitmapConfig;
 
     private EasyLoader() {
 
@@ -39,6 +44,19 @@ public class EasyLoader {
     }
 
     private void apply(final Builder builder) {
+
+    }
+
+    public Context getContext() {
+        return context;
+    }
+
+    public Bitmap.Config getBitmapConfig() {
+        return bitmapConfig;
+    }
+
+    public RequestCreator load(Uri uri) {
+        return null;
     }
 
     static class Builder {
@@ -48,13 +66,14 @@ public class EasyLoader {
 
         private final Context                      context;
         private       boolean                      logEnable;
+        private       Logger                       logger;
         private       CacheManager<String, Bitmap> memoryCacheManager;
         private       CacheManager<String, Bitmap> diskCacheManager;
         private       File                         cacheDirectory;
-        private       Logger                       logger;
         private       OnLoadListener               listener;
         private       ExecutorService              service;
         private       Bitmap.Config                defaultBitmapConfig;
+        private       Downloader                   downloader;
         private long maxMemoryCacheSize = DEFAULT_MEMORY_CACHE_SIZE;
         private long maxDiskCacheSize   = DEFAULT_DISK_CACHE_SIZE;
 

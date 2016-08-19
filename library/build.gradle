@@ -27,6 +27,8 @@ dependencies {
     compile fileTree(dir: 'libs', include: ['*.jar'])
     compile rootProject.ext.dependencies.supportV7
     compile rootProject.ext.dependencies.commonsCodec
+    compile rootProject.ext.dependencies.okhttp
+    compile rootProject.ext.dependencies.okhttp3
 
     testCompile rootProject.ext.dependencies.junit
 }
