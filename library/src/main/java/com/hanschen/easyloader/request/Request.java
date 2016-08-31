@@ -197,7 +197,7 @@ public class Request {
         return "[R" + id + ']';
     }
 
-    String getName() {
+    public String getName() {
         if (uri != null) {
             return String.valueOf(uri.getPath());
         }
@@ -212,7 +212,7 @@ public class Request {
         return needsMatrixTransform() || hasCustomTransformations();
     }
 
-    boolean needsMatrixTransform() {
+    public boolean needsMatrixTransform() {
         return hasSize() || rotationDegrees != 0;
     }
 

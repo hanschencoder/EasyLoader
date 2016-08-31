@@ -46,9 +46,10 @@ import static android.os.Build.VERSION_CODES.JELLY_BEAN_MR2;
 import static android.os.Process.THREAD_PRIORITY_BACKGROUND;
 
 final public class Utils {
-    private static final int MIN_DISK_CACHE_SIZE     = 5 * 1024 * 1024; // 5MB
-    private static final int MAX_DISK_CACHE_SIZE     = 50 * 1024 * 1024; // 50MB
-    static final         int THREAD_LEAK_CLEANING_MS = 1000;
+    public static final  String THREAD_PREFIX           = "EasyLoader-";
+    private static final int    MIN_DISK_CACHE_SIZE     = 5 * 1024 * 1024; // 5MB
+    private static final int    MAX_DISK_CACHE_SIZE     = 50 * 1024 * 1024; // 50MB
+    static final         int    THREAD_LEAK_CLEANING_MS = 1000;
 
     /**
      * Thread confined to main thread for key creation.
@@ -114,7 +115,7 @@ final public class Utils {
         return (int) (1024L * 1024L * memoryClass / 7);
     }
 
-    static boolean isAirplaneModeOn(Context context) {
+    public static boolean isAirplaneModeOn(Context context) {
         ContentResolver contentResolver = context.getContentResolver();
         try {
             if (SDK_INT < JELLY_BEAN_MR1) {
@@ -133,11 +134,11 @@ final public class Utils {
     }
 
     @SuppressWarnings("unchecked")
-    static <T> T getService(Context context, String service) {
+    public static <T> T getService(Context context, String service) {
         return (T) context.getSystemService(service);
     }
 
-    static boolean hasPermission(Context context, String permission) {
+    public static boolean hasPermission(Context context, String permission) {
         return context.checkCallingOrSelfPermission(permission) == PackageManager.PERMISSION_GRANTED;
     }
 
@@ -166,7 +167,7 @@ final public class Utils {
      * that was sent to it. This method makes sure that stack local reference never stays there
      * for too long by sending new messages to it every second.
      */
-    static void flushStackLocalLeaks(Looper looper) {
+    public static void flushStackLocalLeaks(Looper looper) {
         Handler handler = new Handler(looper) {
             @Override
             public void handleMessage(Message msg) {
@@ -183,7 +184,7 @@ final public class Utils {
         }
     }
 
-    static class PicassoThreadFactory implements ThreadFactory {
+    public static class PicassoThreadFactory implements ThreadFactory {
         @SuppressWarnings("NullableProblems")
         public Thread newThread(Runnable r) {
             return new PicassoThread(r);

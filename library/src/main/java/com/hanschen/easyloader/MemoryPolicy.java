@@ -31,11 +31,11 @@ public enum MemoryPolicy {
      */
     NO_STORE(1 << 1);
 
-    static boolean shouldReadFromMemoryCache(int memoryPolicy) {
+    public static boolean shouldReadFromMemoryCache(int memoryPolicy) {
         return (memoryPolicy & MemoryPolicy.NO_CACHE.index) == 0;
     }
 
-    static boolean shouldWriteToMemoryCache(int memoryPolicy) {
+    public static boolean shouldWriteToMemoryCache(int memoryPolicy) {
         return (memoryPolicy & MemoryPolicy.NO_STORE.index) == 0;
     }
 

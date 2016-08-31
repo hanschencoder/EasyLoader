@@ -5,14 +5,18 @@ import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.drawable.Drawable;
 import android.net.Uri;
-import android.view.animation.Transformation;
 import android.widget.ImageView;
 import android.widget.RemoteViews;
 
+import com.hanschen.easyloader.Action;
+import com.hanschen.easyloader.BitmapHunter;
+import com.hanschen.easyloader.Callback;
 import com.hanschen.easyloader.EasyLoader;
+import com.hanschen.easyloader.GetAction;
 import com.hanschen.easyloader.MemoryPolicy;
 import com.hanschen.easyloader.NetworkPolicy;
 import com.hanschen.easyloader.Priority;
+import com.hanschen.easyloader.Transformation;
 import com.hanschen.easyloader.util.ThreadChecker;
 import com.hanschen.easyloader.util.Utils;
 
@@ -20,6 +24,8 @@ import java.io.IOException;
 import java.lang.annotation.Target;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
+
+import static com.hanschen.easyloader.MemoryPolicy.shouldReadFromMemoryCache;
 
 /**
  * Created by Hans.Chen on 2016/8/19.
@@ -264,7 +270,7 @@ public class RequestCreator {
         String key = Utils.createKey(finalData, new StringBuilder());
 
         Action action = new GetAction(loader, finalData, memoryPolicy, networkPolicy, tag, key);
-        return forRequest(loader, loader.dispatcher, loader.cache, loader.stats, action).hunt();
+        return BitmapHunter.forRequest(loader, loader.getDispatcher(), loader.cache, loader.stats, action).hunt();
     }
 
     /**

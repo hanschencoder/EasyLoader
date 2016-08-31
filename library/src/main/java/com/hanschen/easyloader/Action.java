@@ -23,8 +23,8 @@ import com.hanschen.easyloader.request.Request;
 import java.lang.ref.ReferenceQueue;
 import java.lang.ref.WeakReference;
 
-abstract class Action<T> {
-    static class RequestWeakReference<M> extends WeakReference<M> {
+public abstract class Action<T> {
+    public static class RequestWeakReference<M> extends WeakReference<M> {
         final Action action;
 
         public RequestWeakReference(Action action, M referent, ReferenceQueue<? super M> q) {
@@ -59,7 +59,7 @@ abstract class Action<T> {
            boolean noFade) {
         this.loader = loader;
         this.request = request;
-        this.target = target == null ? null : new RequestWeakReference<T>(this, target, picasso.referenceQueue);
+        this.target = target == null ? null : new RequestWeakReference<T>(this, target, loader.getReferenceQueue());
         this.memoryPolicy = memoryPolicy;
         this.networkPolicy = networkPolicy;
         this.noFade = noFade;

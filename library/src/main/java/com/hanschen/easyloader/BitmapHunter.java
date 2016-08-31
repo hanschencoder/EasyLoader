@@ -20,10 +20,13 @@ import android.graphics.BitmapFactory;
 import android.graphics.Matrix;
 import android.net.NetworkInfo;
 
+import com.hanschen.easyloader.cache.LruMemoryCache;
 import com.hanschen.easyloader.downloader.Downloader;
 import com.hanschen.easyloader.request.NetworkRequestHandler;
 import com.hanschen.easyloader.request.Request;
 import com.hanschen.easyloader.request.RequestHandler;
+import com.hanschen.easyloader.request.Result;
+import com.hanschen.easyloader.util.CloseUtils;
 import com.hanschen.easyloader.util.Utils;
 
 import java.io.IOException;
@@ -42,9 +45,10 @@ import static android.media.ExifInterface.ORIENTATION_ROTATE_270;
 import static android.media.ExifInterface.ORIENTATION_ROTATE_90;
 import static android.media.ExifInterface.ORIENTATION_TRANSPOSE;
 import static android.media.ExifInterface.ORIENTATION_TRANSVERSE;
+import static com.hanschen.easyloader.MemoryPolicy.shouldReadFromMemoryCache;
 
 
-class BitmapHunter implements Runnable {
+public class BitmapHunter implements Runnable {
     /**
      * Global lock for bitmap decoding to ensure that we are only are decoding one at a time. Since
      * this will only ever happen in background threads we help avoid excessive memory thrashing as
@@ -68,35 +72,40 @@ class BitmapHunter implements Runnable {
         }
 
         @Override
-        public Result load(Request request, int networkPolicy) throws IOException {
+        public Result handle(Request request) throws IOException {
             throw new IllegalStateException("Unrecognized type of request: " + request);
         }
     };
 
-    final int        sequence;
-    final Picasso    picasso;
-    final Dispatcher dispatcher;
-    final Cache      cache;
-    final Stats      stats;
-    final String     key;
-    final Request    data;
-    final int        memoryPolicy;
+    final int                            sequence;
+    final EasyLoader                     loader;
+    final Dispatcher                     dispatcher;
+    final LruMemoryCache<String, Bitmap> cache;
+    final Stats                          stats;
+    final String                         key;
+    final Request                        data;
+    final int                            memoryPolicy;
     int networkPolicy;
     final RequestHandler requestHandler;
 
-    Action             action;
-    List<Action>       actions;
-    Bitmap             result;
-    Future<?>          future;
-    Picasso.LoadedFrom loadedFrom;
-    Exception          exception;
-    int                exifOrientation; // Determined during decoding of original resource.
-    int                retryCount;
-    Priority           priority;
+    Action       action;
+    List<Action> actions;
+    Bitmap       result;
+    Future<?>    future;
+    LoadedFrom   loadedFrom;
+    Exception    exception;
+    int          exifOrientation; // Determined during decoding of original resource.
+    int          retryCount;
+    Priority     priority;
 
-    BitmapHunter(Picasso picasso, Dispatcher dispatcher, Cache cache, Stats stats, Action action, RequestHandler requestHandler) {
+    BitmapHunter(EasyLoader loader,
+                 Dispatcher dispatcher,
+                 LruMemoryCache<String, Bitmap> cache,
+                 Stats stats,
+                 Action action,
+                 RequestHandler requestHandler) {
         this.sequence = SEQUENCE_GENERATOR.incrementAndGet();
-        this.picasso = picasso;
+        this.loader = loader;
         this.dispatcher = dispatcher;
         this.cache = cache;
         this.stats = stats;
@@ -158,7 +167,7 @@ class BitmapHunter implements Runnable {
         try {
             updateThreadName(data);
 
-            if (picasso.loggingEnabled) {
+            if (loader.loggingEnabled) {
                 log(OWNER_HUNTER, VERB_EXECUTING, getLogIdsForHunter(this));
             }
 
@@ -201,7 +210,7 @@ class BitmapHunter implements Runnable {
             if (bitmap != null) {
                 stats.dispatchCacheHit();
                 loadedFrom = MEMORY;
-                if (picasso.loggingEnabled) {
+                if (loader.loggingEnabled) {
                     log(OWNER_HUNTER, VERB_DECODED, data.logId(), "from cache");
                 }
                 return bitmap;
@@ -221,13 +230,13 @@ class BitmapHunter implements Runnable {
                 try {
                     bitmap = decodeStream(is, data);
                 } finally {
-                    Utils.closeQuietly(is);
+                    CloseUtils.close(is);
                 }
             }
         }
 
         if (bitmap != null) {
-            if (picasso.loggingEnabled) {
+            if (loader.loggingEnabled) {
                 log(OWNER_HUNTER, VERB_DECODED, data.logId());
             }
             stats.dispatchBitmapDecoded(bitmap);
@@ -235,13 +244,13 @@ class BitmapHunter implements Runnable {
                 synchronized (DECODE_LOCK) {
                     if (data.needsMatrixTransform() || exifOrientation != 0) {
                         bitmap = transformResult(data, bitmap, exifOrientation);
-                        if (picasso.loggingEnabled) {
+                        if (loader.loggingEnabled) {
                             log(OWNER_HUNTER, VERB_TRANSFORMED, data.logId());
                         }
                     }
                     if (data.hasCustomTransformations()) {
                         bitmap = applyCustomTransformations(data.transformations, bitmap);
-                        if (picasso.loggingEnabled) {
+                        if (loader.loggingEnabled) {
                             log(OWNER_HUNTER, VERB_TRANSFORMED, data.logId(), "from custom transformations");
                         }
                     }
@@ -256,7 +265,7 @@ class BitmapHunter implements Runnable {
     }
 
     void attach(Action action) {
-        boolean loggingEnabled = picasso.loggingEnabled;
+        boolean loggingEnabled = loader.loggingEnabled;
         Request request = action.request;
 
         if (this.action == null) {
@@ -302,7 +311,7 @@ class BitmapHunter implements Runnable {
             priority = computeNewPriority();
         }
 
-        if (picasso.loggingEnabled) {
+        if (loader.loggingEnabled) {
             log(OWNER_HUNTER, VERB_REMOVED, action.request.logId(), getLogIdsForHunter(this, "from "));
         }
     }
@@ -376,8 +385,8 @@ class BitmapHunter implements Runnable {
         return action;
     }
 
-    Picasso getPicasso() {
-        return picasso;
+    EasyLoader getLoader() {
+        return loader;
     }
 
     List<Action> getActions() {
@@ -388,7 +397,7 @@ class BitmapHunter implements Runnable {
         return exception;
     }
 
-    Picasso.LoadedFrom getLoadedFrom() {
+    LoadedFrom getLoadedFrom() {
         return loadedFrom;
     }
 
@@ -406,20 +415,24 @@ class BitmapHunter implements Runnable {
         Thread.currentThread().setName(builder.toString());
     }
 
-    static BitmapHunter forRequest(Picasso picasso, Dispatcher dispatcher, Cache cache, Stats stats, Action action) {
+    static BitmapHunter forRequest(EasyLoader loader,
+                                   Dispatcher dispatcher,
+                                   LruMemoryCache<String, Bitmap> cache,
+                                   Stats stats,
+                                   Action action) {
         Request request = action.getRequest();
-        List<RequestHandler> requestHandlers = picasso.getRequestHandlers();
+        List<RequestHandler> requestHandlers = loader.getRequestHandlers();
 
         // Index-based loop to avoid allocating an iterator.
         //noinspection ForLoopReplaceableByForEach
         for (int i = 0, count = requestHandlers.size(); i < count; i++) {
             RequestHandler requestHandler = requestHandlers.get(i);
             if (requestHandler.canHandleRequest(request)) {
-                return new BitmapHunter(picasso, dispatcher, cache, stats, action, requestHandler);
+                return new BitmapHunter(loader, dispatcher, cache, stats, action, requestHandler);
             }
         }
 
-        return new BitmapHunter(picasso, dispatcher, cache, stats, action, ERRORING_HANDLER);
+        return new BitmapHunter(loader, dispatcher, cache, stats, action, ERRORING_HANDLER);
     }
 
     static Bitmap applyCustomTransformations(List<Transformation> transformations, Bitmap result) {
@@ -429,7 +442,7 @@ class BitmapHunter implements Runnable {
             try {
                 newResult = transformation.transform(result);
             } catch (final RuntimeException e) {
-                Picasso.HANDLER.post(new Runnable() {
+                EasyLoader.HANDLER.post(new Runnable() {
                     @Override
                     public void run() {
                         throw new RuntimeException("Transformation " + transformation.key() + " crashed with exception.", e);
@@ -448,7 +461,7 @@ class BitmapHunter implements Runnable {
                 for (Transformation t : transformations) {
                     builder.append(t.key()).append('\n');
                 }
-                Picasso.HANDLER.post(new Runnable() {
+                EasyLoader.HANDLER.post(new Runnable() {
                     @Override
                     public void run() {
                         throw new NullPointerException(builder.toString());
@@ -458,7 +471,7 @@ class BitmapHunter implements Runnable {
             }
 
             if (newResult == result && result.isRecycled()) {
-                Picasso.HANDLER.post(new Runnable() {
+                EasyLoader.HANDLER.post(new Runnable() {
                     @Override
                     public void run() {
                         throw new IllegalStateException("Transformation " + transformation.key() + " returned input Bitmap but recycled it.");
@@ -469,7 +482,7 @@ class BitmapHunter implements Runnable {
 
             // If the transformation returned a new bitmap ensure they recycled the original.
             if (newResult != result && !result.isRecycled()) {
-                Picasso.HANDLER.post(new Runnable() {
+                EasyLoader.HANDLER.post(new Runnable() {
                     @Override
                     public void run() {
                         throw new IllegalStateException("Transformation " + transformation.key() + " mutated input Bitmap but failed to recycle the original.");
