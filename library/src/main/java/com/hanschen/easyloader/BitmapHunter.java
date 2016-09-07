@@ -183,6 +183,7 @@ public class BitmapHunter implements Runnable {
     }
 
     public Bitmap hunt() throws IOException {
+
         Bitmap bitmap = null;
 
         if (shouldReadFromMemoryCache(memoryPolicy)) {
@@ -199,9 +200,9 @@ public class BitmapHunter implements Runnable {
         if (result != null) {
             loadedFrom = result.getLoadedFrom();
             exifOrientation = result.getExifOrientation();
-            bitmap = result.getBitmap();
 
-            // If there was no Bitmap then we need to decode it from the stream.
+            bitmap = result.getBitmap();
+            // 图片可能保存在InputStream而不是bitmap，比如NetworkRequestHandler
             if (bitmap == null) {
                 InputStream is = result.getStream();
                 try {
