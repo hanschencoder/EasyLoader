@@ -33,16 +33,16 @@ public abstract class Action<T> {
         }
     }
 
-    final EasyLoader       loader;
-    final Request          request;
-    final WeakReference<T> target;
-    final boolean          noFade;
-    final int              memoryPolicy;
-    final int              networkPolicy;
-    final int              errorResId;
-    final Drawable         errorDrawable;
-    final String           key;
-    final Object           tag;
+    public final EasyLoader       loader;
+    public final Request          request;
+    final        WeakReference<T> target;
+    final        boolean          noFade;
+    final        int              memoryPolicy;
+    final        int              networkPolicy;
+    final        int              errorResId;
+    final        Drawable         errorDrawable;
+    final        String           key;
+    final        Object           tag;
 
     boolean willReplay;
     boolean cancelled;
@@ -85,7 +85,7 @@ public abstract class Action<T> {
         return target == null ? null : target.get();
     }
 
-    String getKey() {
+    public String getKey() {
         return key;
     }
 

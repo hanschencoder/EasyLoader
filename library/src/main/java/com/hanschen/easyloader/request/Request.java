@@ -31,7 +31,7 @@ public class Request {
     /**
      * The {@link NetworkPolicy} to use for this request.
      */
-    int  networkPolicy;
+    public int networkPolicy;
 
     /**
      * The image URI.
@@ -185,7 +185,7 @@ public class Request {
         return builder.toString();
     }
 
-    String logId() {
+    public String logId() {
         long delta = System.nanoTime() - started;
         if (delta > TOO_LONG_LOG) {
             return plainId() + '+' + TimeUnit.NANOSECONDS.toSeconds(delta) + 's';
@@ -208,7 +208,7 @@ public class Request {
         return targetWidth != 0 || targetHeight != 0;
     }
 
-    boolean needsTransformation() {
+    public boolean needsTransformation() {
         return needsMatrixTransform() || hasCustomTransformations();
     }
 
@@ -216,7 +216,7 @@ public class Request {
         return hasSize() || rotationDegrees != 0;
     }
 
-    boolean hasCustomTransformations() {
+    public boolean hasCustomTransformations() {
         return transformations != null;
     }
 

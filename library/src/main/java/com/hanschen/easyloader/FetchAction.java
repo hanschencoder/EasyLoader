@@ -19,16 +19,45 @@ import android.graphics.Bitmap;
 
 import com.hanschen.easyloader.request.Request;
 
-public class GetAction extends Action<Void> {
-    public GetAction(EasyLoader picasso, Request data, int memoryPolicy, int networkPolicy, Object tag, String key) {
+public class FetchAction extends Action<Object> {
+
+    private final Object   target;
+    private       Callback callback;
+
+    public FetchAction(EasyLoader picasso,
+                       Request data,
+                       int memoryPolicy,
+                       int networkPolicy,
+                       Object tag,
+                       String key,
+                       Callback callback) {
         super(picasso, null, data, memoryPolicy, networkPolicy, 0, null, key, tag, false);
+        this.target = new Object();
+        this.callback = callback;
     }
 
     @Override
     void complete(Bitmap result, LoadedFrom from) {
+        if (callback != null) {
+            callback.onSuccess();
+        }
     }
 
     @Override
-    public void error() {
+    void error() {
+        if (callback != null) {
+            callback.onError();
+        }
+    }
+
+    @Override
+    void cancel() {
+        super.cancel();
+        callback = null;
+    }
+
+    @Override
+    Object getTarget() {
+        return target;
     }
 }

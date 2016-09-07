@@ -21,8 +21,7 @@ import android.graphics.Matrix;
 import android.net.NetworkInfo;
 
 import com.hanschen.easyloader.cache.LruMemoryCache;
-import com.hanschen.easyloader.downloader.Downloader;
-import com.hanschen.easyloader.request.NetworkRequestHandler;
+import com.hanschen.easyloader.downloader.ResponseException;
 import com.hanschen.easyloader.request.Request;
 import com.hanschen.easyloader.request.RequestHandler;
 import com.hanschen.easyloader.request.Result;
@@ -46,6 +45,7 @@ import static android.media.ExifInterface.ORIENTATION_ROTATE_90;
 import static android.media.ExifInterface.ORIENTATION_TRANSPOSE;
 import static android.media.ExifInterface.ORIENTATION_TRANSVERSE;
 import static com.hanschen.easyloader.MemoryPolicy.shouldReadFromMemoryCache;
+import static com.hanschen.easyloader.util.Utils.log;
 
 
 public class BitmapHunter implements Runnable {
@@ -168,7 +168,7 @@ public class BitmapHunter implements Runnable {
             updateThreadName(data);
 
             if (loader.loggingEnabled) {
-                log(OWNER_HUNTER, VERB_EXECUTING, getLogIdsForHunter(this));
+                log(Utils.OWNER_HUNTER, Utils.VERB_EXECUTING, Utils.getLogIdsForHunter(this));
             }
 
             result = hunt();
@@ -178,14 +178,11 @@ public class BitmapHunter implements Runnable {
             } else {
                 dispatcher.dispatchComplete(this);
             }
-        } catch (Downloader.ResponseException e) {
-            if (!e.localCacheOnly || e.responseCode != 504) {
+        } catch (ResponseException e) {
+            if (e.getResponseCode() != 504) {
                 exception = e;
             }
             dispatcher.dispatchFailed(this);
-        } catch (NetworkRequestHandler.ContentLengthException e) {
-            exception = e;
-            dispatcher.dispatchRetry(this);
         } catch (IOException e) {
             exception = e;
             dispatcher.dispatchRetry(this);
@@ -202,23 +199,23 @@ public class BitmapHunter implements Runnable {
         }
     }
 
-    Bitmap hunt() throws IOException {
+    public Bitmap hunt() throws IOException {
         Bitmap bitmap = null;
 
         if (shouldReadFromMemoryCache(memoryPolicy)) {
             bitmap = cache.get(key);
             if (bitmap != null) {
                 stats.dispatchCacheHit();
-                loadedFrom = MEMORY;
+                loadedFrom = LoadedFrom.MEMORY;
                 if (loader.loggingEnabled) {
-                    log(OWNER_HUNTER, VERB_DECODED, data.logId(), "from cache");
+                    log(Utils.OWNER_HUNTER, Utils.VERB_DECODED, data.logId(), "from cache");
                 }
                 return bitmap;
             }
         }
 
         data.networkPolicy = retryCount == 0 ? NetworkPolicy.OFFLINE.index : networkPolicy;
-        RequestHandler.Result result = requestHandler.load(data, networkPolicy);
+        Result result = requestHandler.handle(data);
         if (result != null) {
             loadedFrom = result.getLoadedFrom();
             exifOrientation = result.getExifOrientation();
@@ -237,7 +234,7 @@ public class BitmapHunter implements Runnable {
 
         if (bitmap != null) {
             if (loader.loggingEnabled) {
-                log(OWNER_HUNTER, VERB_DECODED, data.logId());
+                log(Utils.OWNER_HUNTER, Utils.VERB_DECODED, data.logId());
             }
             stats.dispatchBitmapDecoded(bitmap);
             if (data.needsTransformation() || exifOrientation != 0) {
@@ -245,13 +242,13 @@ public class BitmapHunter implements Runnable {
                     if (data.needsMatrixTransform() || exifOrientation != 0) {
                         bitmap = transformResult(data, bitmap, exifOrientation);
                         if (loader.loggingEnabled) {
-                            log(OWNER_HUNTER, VERB_TRANSFORMED, data.logId());
+                            log(Utils.OWNER_HUNTER, Utils.VERB_TRANSFORMED, data.logId());
                         }
                     }
                     if (data.hasCustomTransformations()) {
                         bitmap = applyCustomTransformations(data.transformations, bitmap);
                         if (loader.loggingEnabled) {
-                            log(OWNER_HUNTER, VERB_TRANSFORMED, data.logId(), "from custom transformations");
+                            log(Utils.OWNER_HUNTER, Utils.VERB_TRANSFORMED, data.logId(), "from custom transformations");
                         }
                     }
                 }
@@ -272,9 +269,9 @@ public class BitmapHunter implements Runnable {
             this.action = action;
             if (loggingEnabled) {
                 if (actions == null || actions.isEmpty()) {
-                    log(OWNER_HUNTER, VERB_JOINED, request.logId(), "to empty hunter");
+                    log(Utils.OWNER_HUNTER, Utils.VERB_JOINED, request.logId(), "to empty hunter");
                 } else {
-                    log(OWNER_HUNTER, VERB_JOINED, request.logId(), getLogIdsForHunter(this, "to "));
+                    log(Utils.OWNER_HUNTER, Utils.VERB_JOINED, request.logId(), Utils.getLogIdsForHunter(this, "to "));
                 }
             }
             return;
@@ -287,7 +284,7 @@ public class BitmapHunter implements Runnable {
         actions.add(action);
 
         if (loggingEnabled) {
-            log(OWNER_HUNTER, VERB_JOINED, request.logId(), getLogIdsForHunter(this, "to "));
+            log(Utils.OWNER_HUNTER, Utils.VERB_JOINED, request.logId(), Utils.getLogIdsForHunter(this, "to "));
         }
 
         Priority actionPriority = action.getPriority();
@@ -312,12 +309,12 @@ public class BitmapHunter implements Runnable {
         }
 
         if (loader.loggingEnabled) {
-            log(OWNER_HUNTER, VERB_REMOVED, action.request.logId(), getLogIdsForHunter(this, "from "));
+            log(Utils.OWNER_HUNTER, Utils.VERB_REMOVED, action.request.logId(), Utils.getLogIdsForHunter(this, "from "));
         }
     }
 
     private Priority computeNewPriority() {
-        Priority newPriority = LOW;
+        Priority newPriority = Priority.LOW;
 
         boolean hasMultiple = actions != null && !actions.isEmpty();
         boolean hasAny = action != null || hasMultiple;
@@ -381,7 +378,7 @@ public class BitmapHunter implements Runnable {
         return data;
     }
 
-    Action getAction() {
+    public Action getAction() {
         return action;
     }
 
@@ -389,7 +386,7 @@ public class BitmapHunter implements Runnable {
         return loader;
     }
 
-    List<Action> getActions() {
+    public List<Action> getActions() {
         return actions;
     }
 
@@ -415,11 +412,11 @@ public class BitmapHunter implements Runnable {
         Thread.currentThread().setName(builder.toString());
     }
 
-    static BitmapHunter forRequest(EasyLoader loader,
-                                   Dispatcher dispatcher,
-                                   LruMemoryCache<String, Bitmap> cache,
-                                   Stats stats,
-                                   Action action) {
+    public static BitmapHunter forRequest(EasyLoader loader,
+                                          Dispatcher dispatcher,
+                                          LruMemoryCache<String, Bitmap> cache,
+                                          Stats stats,
+                                          Action action) {
         Request request = action.getRequest();
         List<RequestHandler> requestHandlers = loader.getRequestHandlers();
 

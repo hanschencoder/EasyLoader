@@ -10,7 +10,7 @@ import java.io.InputStream;
 /**
  * Created by Hans on 2016/8/19.
  */
-public class NetworkRequestHandler implements RequestHandler {
+public class NetworkRequestHandler extends RequestHandler {
 
     private static final String SCHEME_HTTP  = "http";
     private static final String SCHEME_HTTPS = "https";

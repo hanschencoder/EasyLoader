@@ -11,21 +11,29 @@ import android.widget.RemoteViews;
 import com.hanschen.easyloader.Action;
 import com.hanschen.easyloader.BitmapHunter;
 import com.hanschen.easyloader.Callback;
+import com.hanschen.easyloader.DeferredRequestCreator;
 import com.hanschen.easyloader.EasyLoader;
+import com.hanschen.easyloader.FetchAction;
 import com.hanschen.easyloader.GetAction;
+import com.hanschen.easyloader.ImageViewAction;
+import com.hanschen.easyloader.LoadedFrom;
 import com.hanschen.easyloader.MemoryPolicy;
 import com.hanschen.easyloader.NetworkPolicy;
+import com.hanschen.easyloader.PicassoDrawable;
 import com.hanschen.easyloader.Priority;
+import com.hanschen.easyloader.RemoteViewsAction;
+import com.hanschen.easyloader.Target;
+import com.hanschen.easyloader.TargetAction;
 import com.hanschen.easyloader.Transformation;
 import com.hanschen.easyloader.util.ThreadChecker;
 import com.hanschen.easyloader.util.Utils;
 
 import java.io.IOException;
-import java.lang.annotation.Target;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.hanschen.easyloader.MemoryPolicy.shouldReadFromMemoryCache;
+import static com.hanschen.easyloader.util.Utils.log;
 
 /**
  * Created by Hans.Chen on 2016/8/19.
@@ -125,12 +133,12 @@ public class RequestCreator {
         return this;
     }
 
-    RequestCreator clearTag() {
+    public RequestCreator clearTag() {
         this.tag = null;
         return this;
     }
 
-    Object getTag() {
+    public Object getTag() {
         return tag;
     }
 
@@ -139,7 +147,7 @@ public class RequestCreator {
         return this;
     }
 
-    RequestCreator unfit() {
+    public RequestCreator unfit() {
         deferred = false;
         return this;
     }
@@ -305,13 +313,13 @@ public class RequestCreator {
             }
 
             Request request = createRequest(started);
-            String key = createKey(request, new StringBuilder());
+            String key = Utils.createKey(request, new StringBuilder());
 
             if (shouldReadFromMemoryCache(memoryPolicy)) {
                 Bitmap bitmap = loader.quickMemoryCacheCheck(key);
                 if (bitmap != null) {
-                    if (loader.loggingEnabled) {
-                        log(OWNER_MAIN, VERB_COMPLETED, request.plainId(), "from " + MEMORY);
+                    if (loader.isLoggingEnabled()) {
+                        log(Utils.OWNER_MAIN, Utils.VERB_COMPLETED, request.plainId(), "from " + LoadedFrom.MEMORY);
                     }
                     if (callback != null) {
                         callback.onSuccess();
@@ -372,7 +380,7 @@ public class RequestCreator {
      */
     public void into(Target target) {
         long started = System.nanoTime();
-        checkMain();
+        ThreadChecker.checkMain();
 
         if (target == null) {
             throw new IllegalArgumentException("Target must not be null.");
@@ -388,13 +396,13 @@ public class RequestCreator {
         }
 
         Request request = createRequest(started);
-        String requestKey = createKey(request);
+        String requestKey = Utils.createKey(request);
 
         if (shouldReadFromMemoryCache(memoryPolicy)) {
             Bitmap bitmap = loader.quickMemoryCacheCheck(requestKey);
             if (bitmap != null) {
                 loader.cancelRequest(target);
-                target.onBitmapLoaded(bitmap, MEMORY);
+                target.onBitmapLoaded(bitmap, LoadedFrom.MEMORY);
                 return;
             }
         }
@@ -434,9 +442,9 @@ public class RequestCreator {
         }
 
         Request request = createRequest(started);
-        String key = createKey(request, new StringBuilder()); // Non-main thread needs own builder.
+        String key = Utils.createKey(request, new StringBuilder()); // Non-main thread needs own builder.
 
-        RemoteViewsAction action = new NotificationAction(loader, request, remoteViews, viewId, notificationId, notification, notificationTag, memoryPolicy, networkPolicy, key, tag, errorResId);
+        RemoteViewsAction action = new RemoteViewsAction.NotificationAction(loader, request, remoteViews, viewId, notificationId, notification, notificationTag, memoryPolicy, networkPolicy, key, tag, errorResId);
 
         performRemoteViewInto(action);
     }
@@ -462,9 +470,9 @@ public class RequestCreator {
         }
 
         Request request = createRequest(started);
-        String key = createKey(request, new StringBuilder()); // Non-main thread needs own builder.
+        String key = Utils.createKey(request, new StringBuilder()); // Non-main thread needs own builder.
 
-        RemoteViewsAction action = new AppWidgetAction(loader, request, remoteViews, viewId, appWidgetIds, memoryPolicy, networkPolicy, key, tag, errorResId);
+        RemoteViewsAction action = new RemoteViewsAction.AppWidgetAction(loader, request, remoteViews, viewId, appWidgetIds, memoryPolicy, networkPolicy, key, tag, errorResId);
 
         performRemoteViewInto(action);
     }
@@ -486,11 +494,11 @@ public class RequestCreator {
      * <em>Note:</em> The {@link Callback} param is a strong reference and will prevent your
      * {@link android.app.Activity} or {@link android.app.Fragment} from being garbage collected. If
      * you use this method, it is <b>strongly</b> recommended you invoke an adjacent
-     * {@link Picasso#cancelRequest(android.widget.ImageView)} call to prevent temporary leaking.
+     * {@link EasyLoader#cancelRequest(android.widget.ImageView)} call to prevent temporary leaking.
      */
     public void into(ImageView target, Callback callback) {
         long started = System.nanoTime();
-        checkMain();
+        ThreadChecker.checkMain();
 
         if (target == null) {
             throw new IllegalArgumentException("Target must not be null.");
@@ -499,7 +507,7 @@ public class RequestCreator {
         if (!data.hasImage()) {
             loader.cancelRequest(target);
             if (setPlaceholder) {
-                setPlaceholder(target, getPlaceholderDrawable());
+                PicassoDrawable.setPlaceholder(target, getPlaceholderDrawable());
             }
             return;
         }
@@ -512,7 +520,7 @@ public class RequestCreator {
             int height = target.getHeight();
             if (width == 0 || height == 0) {
                 if (setPlaceholder) {
-                    setPlaceholder(target, getPlaceholderDrawable());
+                    PicassoDrawable.setPlaceholder(target, getPlaceholderDrawable());
                 }
                 loader.defer(target, new DeferredRequestCreator(this, target, callback));
                 return;
@@ -521,15 +529,15 @@ public class RequestCreator {
         }
 
         Request request = createRequest(started);
-        String requestKey = createKey(request);
+        String requestKey = Utils.createKey(request);
 
         if (shouldReadFromMemoryCache(memoryPolicy)) {
             Bitmap bitmap = loader.quickMemoryCacheCheck(requestKey);
             if (bitmap != null) {
                 loader.cancelRequest(target);
-                setBitmap(target, loader.context, bitmap, MEMORY, noFade, loader.indicatorsEnabled);
-                if (loader.loggingEnabled) {
-                    log(OWNER_MAIN, VERB_COMPLETED, request.plainId(), "from " + MEMORY);
+                PicassoDrawable.setBitmap(target, loader.context, bitmap, LoadedFrom.MEMORY, noFade, loader.indicatorsEnabled);
+                if (loader.isLoggingEnabled()) {
+                    log(Utils.OWNER_MAIN, Utils.VERB_COMPLETED, request.plainId(), "from " + LoadedFrom.MEMORY);
                 }
                 if (callback != null) {
                     callback.onSuccess();
@@ -539,7 +547,7 @@ public class RequestCreator {
         }
 
         if (setPlaceholder) {
-            setPlaceholder(target, getPlaceholderDrawable());
+            PicassoDrawable.setPlaceholder(target, getPlaceholderDrawable());
         }
 
         Action action = new ImageViewAction(loader, target, request, memoryPolicy, networkPolicy, errorResId, errorDrawable, requestKey, tag, callback, noFade);
@@ -565,9 +573,9 @@ public class RequestCreator {
         request.id = id;
         request.started = started;
 
-        boolean loggingEnabled = loader.loggingEnabled;
+        boolean loggingEnabled = loader.isLoggingEnabled();
         if (loggingEnabled) {
-            log(OWNER_MAIN, VERB_CREATED, request.plainId(), request.toString());
+            log(Utils.OWNER_MAIN, Utils.VERB_CREATED, request.plainId(), request.toString());
         }
 
         Request transformed = loader.transformRequest(request);
@@ -577,7 +585,7 @@ public class RequestCreator {
             transformed.started = started;
 
             if (loggingEnabled) {
-                log(OWNER_MAIN, VERB_CHANGED, transformed.logId(), "into " + transformed);
+                log(Utils.OWNER_MAIN, Utils.VERB_CHANGED, transformed.logId(), "into " + transformed);
             }
         }
 
@@ -588,7 +596,7 @@ public class RequestCreator {
         if (shouldReadFromMemoryCache(memoryPolicy)) {
             Bitmap bitmap = loader.quickMemoryCacheCheck(action.getKey());
             if (bitmap != null) {
-                action.complete(bitmap, MEMORY);
+                action.complete(bitmap, LoadedFrom.MEMORY);
                 return;
             }
         }

@@ -47,7 +47,7 @@ public class Result {
         return loadedFrom;
     }
 
-    int getExifOrientation() {
+    public int getExifOrientation() {
         return exifOrientation;
     }
 }

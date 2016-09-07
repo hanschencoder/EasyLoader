@@ -28,12 +28,15 @@ import android.os.Process;
 import android.os.StatFs;
 import android.provider.Settings;
 
+import com.hanschen.easyloader.Action;
+import com.hanschen.easyloader.BitmapHunter;
 import com.hanschen.easyloader.request.Request;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.List;
 import java.util.concurrent.ThreadFactory;
 
 import static android.content.Context.ACTIVITY_SERVICE;
@@ -47,9 +50,67 @@ import static android.os.Process.THREAD_PRIORITY_BACKGROUND;
 
 final public class Utils {
     public static final  String THREAD_PREFIX           = "EasyLoader-";
+    public static final  String THREAD_IDLE_NAME        = THREAD_PREFIX + "Idle";
     private static final int    MIN_DISK_CACHE_SIZE     = 5 * 1024 * 1024; // 5MB
     private static final int    MAX_DISK_CACHE_SIZE     = 50 * 1024 * 1024; // 50MB
     static final         int    THREAD_LEAK_CLEANING_MS = 1000;
+
+
+    /**
+     * Logging
+     */
+    public static final String OWNER_MAIN       = "Main";
+    public static final String OWNER_DISPATCHER = "Dispatcher";
+    public static final String OWNER_HUNTER     = "Hunter";
+    public static final String VERB_CREATED     = "created";
+    public static final String VERB_CHANGED     = "changed";
+    public static final String VERB_IGNORED     = "ignored";
+    public static final String VERB_ENQUEUED    = "enqueued";
+    public static final String VERB_CANCELED    = "canceled";
+    public static final String VERB_BATCHED     = "batched";
+    public static final String VERB_RETRYING    = "retrying";
+    public static final String VERB_EXECUTING   = "executing";
+    public static final String VERB_DECODED     = "decoded";
+    public static final String VERB_TRANSFORMED = "transformed";
+    public static final String VERB_JOINED      = "joined";
+    public static final String VERB_REMOVED     = "removed";
+    public static final String VERB_DELIVERED   = "delivered";
+    public static final String VERB_REPLAYING   = "replaying";
+    public static final String VERB_COMPLETED   = "completed";
+    public static final String VERB_ERRORED     = "errored";
+    public static final String VERB_PAUSED      = "paused";
+    public static final String VERB_RESUMED     = "resumed";
+
+
+    public static void log(String owner, String verb, String logId) {
+//        log(owner, verb, logId, "");
+    }
+
+    public static void log(String owner, String verb, String logId, String extras) {
+//        Log.d(TAG, format("%1$-11s %2$-12s %3$s %4$s", owner, verb, logId, extras));
+    }
+
+    public static String getLogIdsForHunter(BitmapHunter hunter) {
+        return getLogIdsForHunter(hunter, "");
+    }
+
+    public static String getLogIdsForHunter(BitmapHunter hunter, String prefix) {
+        StringBuilder builder = new StringBuilder(prefix);
+        Action action = hunter.getAction();
+        if (action != null) {
+            builder.append(action.request.logId());
+        }
+        List<Action> actions = hunter.getActions();
+        if (actions != null) {
+            for (int i = 0, count = actions.size(); i < count; i++) {
+                if (i > 0 || action != null)
+                    builder.append(", ");
+                builder.append(actions.get(i).request.logId());
+            }
+        }
+        return builder.toString();
+    }
+
 
     /**
      * Thread confined to main thread for key creation.
@@ -142,7 +203,7 @@ final public class Utils {
         return context.checkCallingOrSelfPermission(permission) == PackageManager.PERMISSION_GRANTED;
     }
 
-    static byte[] toByteArray(InputStream input) throws IOException {
+    public static byte[] toByteArray(InputStream input) throws IOException {
         ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
         byte[] buffer = new byte[1024 * 4];
         int n;
@@ -152,7 +213,7 @@ final public class Utils {
         return byteArrayOutputStream.toByteArray();
     }
 
-    static boolean isWebPFile(InputStream stream) throws IOException {
+    public static boolean isWebPFile(InputStream stream) throws IOException {
         byte[] fileHeaderBytes = new byte[WEBP_FILE_HEADER_SIZE];
         boolean isWebPFile = false;
         if (stream.read(fileHeaderBytes, 0, WEBP_FILE_HEADER_SIZE) == WEBP_FILE_HEADER_SIZE) {
@@ -208,6 +269,12 @@ final public class Utils {
         static int getByteCount(Bitmap bitmap) {
             return bitmap.getByteCount();
         }
+    }
+
+    public static String createKey(Request data) {
+        String result = createKey(data, MAIN_THREAD_KEY_BUILDER);
+        MAIN_THREAD_KEY_BUILDER.setLength(0);
+        return result;
     }
 
     public static String createKey(Request data, StringBuilder builder) {

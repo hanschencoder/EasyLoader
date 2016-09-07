@@ -8,6 +8,7 @@ import android.os.Looper;
 import android.os.Message;
 import android.os.Process;
 import android.support.annotation.NonNull;
+import android.widget.ImageView;
 
 import com.hanschen.easyloader.cache.CacheManager;
 import com.hanschen.easyloader.cache.LruDiskCache;
@@ -17,39 +18,93 @@ import com.hanschen.easyloader.callback.OnLoadListener;
 import com.hanschen.easyloader.downloader.Downloader;
 import com.hanschen.easyloader.log.Logger;
 import com.hanschen.easyloader.request.NetworkRequestHandler;
+import com.hanschen.easyloader.request.Request;
 import com.hanschen.easyloader.request.RequestCreator;
 import com.hanschen.easyloader.request.RequestHandler;
 import com.hanschen.easyloader.util.AppUtils;
 import com.hanschen.easyloader.util.BitmapUtils;
+import com.hanschen.easyloader.util.Utils;
 
 import java.io.File;
 import java.lang.ref.ReferenceQueue;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.WeakHashMap;
 import java.util.concurrent.ExecutorService;
 
 import static android.os.Process.THREAD_PRIORITY_BACKGROUND;
+import static com.hanschen.easyloader.MemoryPolicy.shouldReadFromMemoryCache;
+import static com.hanschen.easyloader.util.ThreadChecker.checkMain;
+import static com.hanschen.easyloader.util.Utils.log;
 
 /**
  * Created by Hans.Chen on 2016/7/27.
  */
 public class EasyLoader {
 
-    private volatile static EasyLoader             singleton;
-    private                 Context                context;
-    private                 Bitmap.Config          bitmapConfig;
-    final                   ReferenceQueue<Object> referenceQueue;
-    volatile                boolean                loggingEnabled;
-    final                   Dispatcher             dispatcher;
-    private final           List<RequestHandler>   requestHandlers;
+    private volatile static EasyLoader                             singleton;
+    public                  Context                                context;
+    private                 Bitmap.Config                          bitmapConfig;
+    final                   ReferenceQueue<Object>                 referenceQueue;
+    volatile                boolean                                loggingEnabled;
+    final                   Dispatcher                             dispatcher;
+    private final           List<RequestHandler>                   requestHandlers;
+    public final            LruMemoryCache<String, Bitmap>         cache;
+    final                   Bitmap.Config                          defaultBitmapConfig;
+    private final           RequestTransformer                     requestTransformer;
+    private final           OnLoadListener                         listener;
+    private final           CleanupThread                          cleanupThread;
+    public final            Stats                                  stats;
+    final                   Map<Object, Action>                    targetToAction;
+    final                   Map<ImageView, DeferredRequestCreator> targetToDeferredRequestCreator;
+
+    public boolean indicatorsEnabled;
 
     public boolean isLoggingEnabled() {
         return loggingEnabled;
     }
 
-    private EasyLoader(Context context, Dispatcher dispatcher, List<RequestHandler> extraRequestHandlers, Stats stats,) {
 
+    public interface RequestTransformer {
+        /**
+         * Transform a request before it is submitted to be processed.
+         *
+         * @return The original request or a new request to replace it. Must not be null.
+         */
+        Request transformRequest(Request request);
+
+        /**
+         * A {@link RequestTransformer} which returns the original request.
+         */
+        RequestTransformer IDENTITY = new RequestTransformer() {
+            @Override
+            public Request transformRequest(Request request) {
+                return request;
+            }
+        };
+    }
+
+    private EasyLoader(Context context,
+                       Dispatcher dispatcher,
+                       List<RequestHandler> extraRequestHandlers,
+                       Stats stats,
+                       LruMemoryCache<String, Bitmap> cache,
+                       Bitmap.Config defaultBitmapConfig,
+                       OnLoadListener listener,
+                       RequestTransformer requestTransformer) {
+
+        this.context = context;
+        this.dispatcher = dispatcher;
+        this.cache = cache;
+        this.listener = listener;
+        this.requestTransformer = requestTransformer;
+        this.defaultBitmapConfig = defaultBitmapConfig;
+
+        this.stats = stats;
+
+        this.targetToDeferredRequestCreator = new WeakHashMap<ImageView, DeferredRequestCreator>();
         int builtInHandlers = 7; // Adjust this as internal handlers are added or removed.
         int extraCount = (extraRequestHandlers != null ? extraRequestHandlers.size() : 0);
         List<RequestHandler> allRequestHandlers = new ArrayList<>(builtInHandlers + extraCount);
@@ -60,10 +115,10 @@ public class EasyLoader {
         if (extraRequestHandlers != null) {
             allRequestHandlers.addAll(extraRequestHandlers);
         }
-        allRequestHandlers.add(new NetworkRequestHandler(dispatcher.downloader, stats));
+        allRequestHandlers.add(new NetworkRequestHandler(dispatcher.downloader));
         requestHandlers = Collections.unmodifiableList(allRequestHandlers);
 
-        dispatcher = new Dispatcher(context, service, HANDLER, downloader, cache, stats);
+        this.targetToAction = new WeakHashMap<Object, Action>();
         this.referenceQueue = new ReferenceQueue<Object>();
         this.cleanupThread = new CleanupThread(referenceQueue, HANDLER);
         this.cleanupThread.start();
@@ -75,6 +130,19 @@ public class EasyLoader {
 
     public ReferenceQueue<Object> getReferenceQueue() {
         return referenceQueue;
+    }
+
+    public List<RequestHandler> getRequestHandlers() {
+        return requestHandlers;
+    }
+
+    public Request transformRequest(Request request) {
+        Request transformed = requestTransformer.transformRequest(request);
+        if (transformed == null) {
+            throw new IllegalStateException("Request transformer " + requestTransformer.getClass()
+                                                                                       .getCanonicalName() + " returned null for " + request);
+        }
+        return transformed;
     }
 
     static final Handler HANDLER = new Handler(Looper.getMainLooper()) {
@@ -93,9 +161,9 @@ public class EasyLoader {
                 case Dispatcher.REQUEST_GCED: {
                     Action action = (Action) msg.obj;
                     if (action.getPicasso().loggingEnabled) {
-                        log(OWNER_MAIN, VERB_CANCELED, action.request.logId(), "target got garbage collected");
+                        log(Utils.OWNER_MAIN, Utils.VERB_CANCELED, action.request.logId(), "target got garbage collected");
                     }
-                    action.picasso.cancelExistingRequest(action.getTarget());
+                    action.loader.cancelExistingRequest(action.getTarget());
                     break;
                 }
                 case Dispatcher.REQUEST_BATCH_RESUME:
@@ -103,7 +171,7 @@ public class EasyLoader {
                     //noinspection ForLoopReplaceableByForEach
                     for (int i = 0, n = batch.size(); i < n; i++) {
                         Action action = batch.get(i);
-                        action.picasso.resumeAction(action);
+                        action.loader.resumeAction(action);
                     }
                     break;
                 default:
@@ -111,6 +179,149 @@ public class EasyLoader {
             }
         }
     };
+
+    public void cancelRequest(@NonNull ImageView view) {
+        // checkMain() is called from cancelExistingRequest()
+        if (view == null) {
+            throw new IllegalArgumentException("view cannot be null.");
+        }
+        cancelExistingRequest(view);
+    }
+
+    public void cancelRequest(@NonNull Target target) {
+        // checkMain() is called from cancelExistingRequest()
+        if (target == null) {
+            throw new IllegalArgumentException("target cannot be null.");
+        }
+        cancelExistingRequest(target);
+    }
+
+    void complete(BitmapHunter hunter) {
+        Action single = hunter.getAction();
+        List<Action> joined = hunter.getActions();
+
+        boolean hasMultiple = joined != null && !joined.isEmpty();
+        boolean shouldDeliver = single != null || hasMultiple;
+
+        if (!shouldDeliver) {
+            return;
+        }
+
+        Uri uri = hunter.getData().uri;
+        Exception exception = hunter.getException();
+        Bitmap result = hunter.getResult();
+        LoadedFrom from = hunter.getLoadedFrom();
+
+        if (single != null) {
+            deliverAction(result, from, single);
+        }
+
+        if (hasMultiple) {
+            //noinspection ForLoopReplaceableByForEach
+            for (int i = 0, n = joined.size(); i < n; i++) {
+                Action join = joined.get(i);
+                deliverAction(result, from, join);
+            }
+        }
+
+        if (listener != null && exception != null) {
+            listener.onLoadFailed(this, uri, exception);
+        }
+    }
+
+    public void defer(ImageView view, DeferredRequestCreator request) {
+        // If there is already a deferred request, cancel it.
+        if (targetToDeferredRequestCreator.containsKey(view)) {
+            cancelExistingRequest(view);
+        }
+        targetToDeferredRequestCreator.put(view, request);
+    }
+
+    public Bitmap quickMemoryCacheCheck(String key) {
+        Bitmap cached = cache.get(key);
+        if (cached != null) {
+            stats.dispatchCacheHit();
+        } else {
+            stats.dispatchCacheMiss();
+        }
+        return cached;
+    }
+
+
+    public void submit(Action action) {
+        dispatcher.dispatchSubmit(action);
+    }
+
+    public void enqueueAndSubmit(Action action) {
+        Object target = action.getTarget();
+        if (target != null && targetToAction.get(target) != action) {
+            // This will also check we are on the main thread.
+            cancelExistingRequest(target);
+            targetToAction.put(target, action);
+        }
+        submit(action);
+    }
+
+
+    void resumeAction(Action action) {
+        Bitmap bitmap = null;
+        if (shouldReadFromMemoryCache(action.memoryPolicy)) {
+            bitmap = quickMemoryCacheCheck(action.getKey());
+        }
+
+        if (bitmap != null) {
+            // Resumed action is cached, complete immediately.
+            deliverAction(bitmap, LoadedFrom.MEMORY, action);
+            if (loggingEnabled) {
+                log(Utils.OWNER_MAIN, Utils.VERB_COMPLETED, action.request.logId(), "from " + LoadedFrom.MEMORY);
+            }
+        } else {
+            // Re-submit the action to the executor.
+            enqueueAndSubmit(action);
+            if (loggingEnabled) {
+                log(Utils.OWNER_MAIN, Utils.VERB_RESUMED, action.request.logId());
+            }
+        }
+    }
+
+    private void deliverAction(Bitmap result, LoadedFrom from, Action action) {
+        if (action.isCancelled()) {
+            return;
+        }
+        if (!action.willReplay()) {
+            targetToAction.remove(action.getTarget());
+        }
+        if (result != null) {
+            if (from == null) {
+                throw new AssertionError("LoadedFrom cannot be null.");
+            }
+            action.complete(result, from);
+            if (loggingEnabled) {
+                log(Utils.OWNER_MAIN, Utils.VERB_COMPLETED, action.request.logId(), "from " + from);
+            }
+        } else {
+            action.error();
+            if (loggingEnabled) {
+                log(Utils.OWNER_MAIN, Utils.VERB_ERRORED, action.request.logId());
+            }
+        }
+    }
+
+    private void cancelExistingRequest(Object target) {
+        checkMain();
+        Action action = targetToAction.remove(target);
+        if (action != null) {
+            action.cancel();
+            dispatcher.dispatchCancel(action);
+        }
+        if (target instanceof ImageView) {
+            ImageView targetImageView = (ImageView) target;
+            DeferredRequestCreator deferredRequestCreator = targetToDeferredRequestCreator.remove(targetImageView);
+            if (deferredRequestCreator != null) {
+                deferredRequestCreator.cancel();
+            }
+        }
+    }
 
     private static class CleanupThread extends Thread {
         private final ReferenceQueue<Object> referenceQueue;
@@ -250,7 +461,7 @@ public class EasyLoader {
             }
 
 
-            EasyLoader loader = new EasyLoader();
+            EasyLoader loader = new EasyLoader(null, null, null, null, null, null, null, null);
             loader.apply(Builder.this);
             return loader;
         }
