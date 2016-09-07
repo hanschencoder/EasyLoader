@@ -28,15 +28,12 @@ import android.os.Process;
 import android.os.StatFs;
 import android.provider.Settings;
 
-import com.hanschen.easyloader.Action;
-import com.hanschen.easyloader.BitmapHunter;
 import com.hanschen.easyloader.request.Request;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.List;
 import java.util.concurrent.ThreadFactory;
 
 import static android.content.Context.ACTIVITY_SERVICE;
@@ -80,37 +77,6 @@ final public class Utils {
     public static final String VERB_ERRORED     = "errored";
     public static final String VERB_PAUSED      = "paused";
     public static final String VERB_RESUMED     = "resumed";
-
-
-    public static void log(String owner, String verb, String logId) {
-//        log(owner, verb, logId, "");
-    }
-
-    public static void log(String owner, String verb, String logId, String extras) {
-//        Log.d(TAG, format("%1$-11s %2$-12s %3$s %4$s", owner, verb, logId, extras));
-    }
-
-    public static String getLogIdsForHunter(BitmapHunter hunter) {
-        return getLogIdsForHunter(hunter, "");
-    }
-
-    public static String getLogIdsForHunter(BitmapHunter hunter, String prefix) {
-        StringBuilder builder = new StringBuilder(prefix);
-        Action action = hunter.getAction();
-        if (action != null) {
-            builder.append(action.request.logId());
-        }
-        List<Action> actions = hunter.getActions();
-        if (actions != null) {
-            for (int i = 0, count = actions.size(); i < count; i++) {
-                if (i > 0 || action != null)
-                    builder.append(", ");
-                builder.append(actions.get(i).request.logId());
-            }
-        }
-        return builder.toString();
-    }
-
 
     /**
      * Thread confined to main thread for key creation.

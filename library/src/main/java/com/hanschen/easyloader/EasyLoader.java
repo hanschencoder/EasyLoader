@@ -23,7 +23,6 @@ import com.hanschen.easyloader.request.RequestCreator;
 import com.hanschen.easyloader.request.RequestHandler;
 import com.hanschen.easyloader.util.AppUtils;
 import com.hanschen.easyloader.util.BitmapUtils;
-import com.hanschen.easyloader.util.Utils;
 
 import java.io.File;
 import java.lang.ref.ReferenceQueue;
@@ -37,7 +36,6 @@ import java.util.concurrent.ExecutorService;
 import static android.os.Process.THREAD_PRIORITY_BACKGROUND;
 import static com.hanschen.easyloader.MemoryPolicy.shouldReadFromMemoryCache;
 import static com.hanschen.easyloader.util.ThreadChecker.checkMain;
-import static com.hanschen.easyloader.util.Utils.log;
 
 /**
  * Created by Hans.Chen on 2016/7/27.
@@ -181,9 +179,6 @@ public class EasyLoader {
                 }
                 case Dispatcher.REQUEST_GCED: {
                     Action action = (Action) msg.obj;
-                    if (action.getPicasso().loggingEnabled) {
-                        log(Utils.OWNER_MAIN, Utils.VERB_CANCELED, action.request.logId(), "target got garbage collected");
-                    }
                     action.loader.cancelExistingRequest(action.getTarget());
                     break;
                 }
@@ -293,15 +288,9 @@ public class EasyLoader {
         if (bitmap != null) {
             // Resumed action is cached, complete immediately.
             deliverAction(bitmap, LoadedFrom.MEMORY, action);
-            if (loggingEnabled) {
-                log(Utils.OWNER_MAIN, Utils.VERB_COMPLETED, action.request.logId(), "from " + LoadedFrom.MEMORY);
-            }
         } else {
             // Re-submit the action to the executor.
             enqueueAndSubmit(action);
-            if (loggingEnabled) {
-                log(Utils.OWNER_MAIN, Utils.VERB_RESUMED, action.request.logId());
-            }
         }
     }
 
@@ -317,14 +306,8 @@ public class EasyLoader {
                 throw new AssertionError("LoadedFrom cannot be null.");
             }
             action.complete(result, from);
-            if (loggingEnabled) {
-                log(Utils.OWNER_MAIN, Utils.VERB_COMPLETED, action.request.logId(), "from " + from);
-            }
         } else {
             action.error();
-            if (loggingEnabled) {
-                log(Utils.OWNER_MAIN, Utils.VERB_ERRORED, action.request.logId());
-            }
         }
     }
 

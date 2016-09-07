@@ -45,7 +45,6 @@ import static android.media.ExifInterface.ORIENTATION_ROTATE_90;
 import static android.media.ExifInterface.ORIENTATION_TRANSPOSE;
 import static android.media.ExifInterface.ORIENTATION_TRANSVERSE;
 import static com.hanschen.easyloader.MemoryPolicy.shouldReadFromMemoryCache;
-import static com.hanschen.easyloader.util.Utils.log;
 
 
 public class BitmapHunter implements Runnable {
@@ -64,18 +63,6 @@ public class BitmapHunter implements Runnable {
     };
 
     private static final AtomicInteger SEQUENCE_GENERATOR = new AtomicInteger();
-
-    private static final RequestHandler ERRORING_HANDLER = new RequestHandler() {
-        @Override
-        public boolean canHandleRequest(Request data) {
-            return true;
-        }
-
-        @Override
-        public Result handle(Request request) throws IOException {
-            throw new IllegalStateException("Unrecognized type of request: " + request);
-        }
-    };
 
     final int                            sequence;
     final EasyLoader                     loader;
@@ -167,10 +154,6 @@ public class BitmapHunter implements Runnable {
         try {
             updateThreadName(data);
 
-            if (loader.loggingEnabled) {
-                log(Utils.OWNER_HUNTER, Utils.VERB_EXECUTING, Utils.getLogIdsForHunter(this));
-            }
-
             result = hunt();
 
             if (result == null) {
@@ -207,9 +190,6 @@ public class BitmapHunter implements Runnable {
             if (bitmap != null) {
                 stats.dispatchCacheHit();
                 loadedFrom = LoadedFrom.MEMORY;
-                if (loader.loggingEnabled) {
-                    log(Utils.OWNER_HUNTER, Utils.VERB_DECODED, data.logId(), "from cache");
-                }
                 return bitmap;
             }
         }
@@ -233,23 +213,14 @@ public class BitmapHunter implements Runnable {
         }
 
         if (bitmap != null) {
-            if (loader.loggingEnabled) {
-                log(Utils.OWNER_HUNTER, Utils.VERB_DECODED, data.logId());
-            }
             stats.dispatchBitmapDecoded(bitmap);
             if (data.needsTransformation() || exifOrientation != 0) {
                 synchronized (DECODE_LOCK) {
                     if (data.needsMatrixTransform() || exifOrientation != 0) {
                         bitmap = transformResult(data, bitmap, exifOrientation);
-                        if (loader.loggingEnabled) {
-                            log(Utils.OWNER_HUNTER, Utils.VERB_TRANSFORMED, data.logId());
-                        }
                     }
                     if (data.hasCustomTransformations()) {
                         bitmap = applyCustomTransformations(data.transformations, bitmap);
-                        if (loader.loggingEnabled) {
-                            log(Utils.OWNER_HUNTER, Utils.VERB_TRANSFORMED, data.logId(), "from custom transformations");
-                        }
                     }
                 }
                 if (bitmap != null) {
@@ -267,13 +238,6 @@ public class BitmapHunter implements Runnable {
 
         if (this.action == null) {
             this.action = action;
-            if (loggingEnabled) {
-                if (actions == null || actions.isEmpty()) {
-                    log(Utils.OWNER_HUNTER, Utils.VERB_JOINED, request.logId(), "to empty hunter");
-                } else {
-                    log(Utils.OWNER_HUNTER, Utils.VERB_JOINED, request.logId(), Utils.getLogIdsForHunter(this, "to "));
-                }
-            }
             return;
         }
 
@@ -282,10 +246,6 @@ public class BitmapHunter implements Runnable {
         }
 
         actions.add(action);
-
-        if (loggingEnabled) {
-            log(Utils.OWNER_HUNTER, Utils.VERB_JOINED, request.logId(), Utils.getLogIdsForHunter(this, "to "));
-        }
 
         Priority actionPriority = action.getPriority();
         if (actionPriority.ordinal() > priority.ordinal()) {
@@ -306,10 +266,6 @@ public class BitmapHunter implements Runnable {
         // hunter's priority with the remaining actions.
         if (detached && action.getPriority() == priority) {
             priority = computeNewPriority();
-        }
-
-        if (loader.loggingEnabled) {
-            log(Utils.OWNER_HUNTER, Utils.VERB_REMOVED, action.request.logId(), Utils.getLogIdsForHunter(this, "from "));
         }
     }
 
@@ -420,16 +376,14 @@ public class BitmapHunter implements Runnable {
         Request request = action.getRequest();
         List<RequestHandler> requestHandlers = loader.getRequestHandlers();
 
-        // Index-based loop to avoid allocating an iterator.
-        //noinspection ForLoopReplaceableByForEach
         for (int i = 0, count = requestHandlers.size(); i < count; i++) {
-            RequestHandler requestHandler = requestHandlers.get(i);
-            if (requestHandler.canHandleRequest(request)) {
-                return new BitmapHunter(loader, dispatcher, cache, stats, action, requestHandler);
+            RequestHandler handler = requestHandlers.get(i);
+            if (handler.canHandleRequest(request)) {
+                return new BitmapHunter(loader, dispatcher, cache, stats, action, handler);
             }
         }
 
-        return new BitmapHunter(loader, dispatcher, cache, stats, action, ERRORING_HANDLER);
+        throw new IllegalStateException("Unrecognized type of request: " + request);
     }
 
     static Bitmap applyCustomTransformations(List<Transformation> transformations, Bitmap result) {

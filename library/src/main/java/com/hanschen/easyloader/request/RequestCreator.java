@@ -33,7 +33,6 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.hanschen.easyloader.MemoryPolicy.shouldReadFromMemoryCache;
-import static com.hanschen.easyloader.util.Utils.log;
 
 /**
  * Created by Hans.Chen on 2016/8/19.
@@ -323,9 +322,6 @@ public class RequestCreator {
             if (shouldReadFromMemoryCache(memoryPolicy)) {
                 Bitmap bitmap = loader.quickMemoryCacheCheck(key);
                 if (bitmap != null) {
-                    if (loader.isLoggingEnabled()) {
-                        log(Utils.OWNER_MAIN, Utils.VERB_COMPLETED, request.plainId(), "from " + LoadedFrom.MEMORY);
-                    }
                     if (callback != null) {
                         callback.onSuccess();
                     }
@@ -541,9 +537,6 @@ public class RequestCreator {
             if (bitmap != null) {
                 loader.cancelRequest(target);
                 PicassoDrawable.setBitmap(target, loader.context, bitmap, LoadedFrom.MEMORY, noFade, loader.indicatorsEnabled);
-                if (loader.isLoggingEnabled()) {
-                    log(Utils.OWNER_MAIN, Utils.VERB_COMPLETED, request.plainId(), "from " + LoadedFrom.MEMORY);
-                }
                 if (callback != null) {
                     callback.onSuccess();
                 }

@@ -24,6 +24,7 @@ import java.lang.ref.ReferenceQueue;
 import java.lang.ref.WeakReference;
 
 public abstract class Action<T> {
+
     public static class RequestWeakReference<M> extends WeakReference<M> {
         final Action action;
 
@@ -59,7 +60,7 @@ public abstract class Action<T> {
            boolean noFade) {
         this.loader = loader;
         this.request = request;
-        this.target = target == null ? null : new RequestWeakReference<T>(this, target, loader.getReferenceQueue());
+        this.target = target == null ? null : new RequestWeakReference<>(this, target, loader.getReferenceQueue());
         this.memoryPolicy = memoryPolicy;
         this.networkPolicy = networkPolicy;
         this.noFade = noFade;
