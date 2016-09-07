@@ -46,19 +46,19 @@ public class EasyLoader {
 
     private volatile static EasyLoader                             singleton;
     public                  Context                                context;
-    private                 Bitmap.Config                          bitmapConfig;
     final                   ReferenceQueue<Object>                 referenceQueue;
     volatile                boolean                                loggingEnabled;
     final                   Dispatcher                             dispatcher;
     private final           List<RequestHandler>                   requestHandlers;
     public final            LruMemoryCache<String, Bitmap>         cache;
-    final                   Bitmap.Config                          defaultBitmapConfig;
+    public final            Bitmap.Config                          defaultBitmapConfig;
     private final           RequestTransformer                     requestTransformer;
     private final           OnLoadListener                         listener;
     private final           CleanupThread                          cleanupThread;
     public final            Stats                                  stats;
     final                   Map<Object, Action>                    targetToAction;
     final                   Map<ImageView, DeferredRequestCreator> targetToDeferredRequestCreator;
+    public                  boolean                                shutdown;
 
     public boolean indicatorsEnabled;
 
@@ -88,12 +88,14 @@ public class EasyLoader {
 
     private EasyLoader(Context context,
                        Dispatcher dispatcher,
+                       LruMemoryCache<String, Bitmap> cache,
+                       OnLoadListener listener,
                        List<RequestHandler> extraRequestHandlers,
                        Stats stats,
-                       LruMemoryCache<String, Bitmap> cache,
                        Bitmap.Config defaultBitmapConfig,
-                       OnLoadListener listener,
-                       RequestTransformer requestTransformer) {
+                       RequestTransformer requestTransformer,
+                       boolean indicatorsEnabled,
+                       boolean loggingEnabled) {
 
         this.context = context;
         this.dispatcher = dispatcher;
@@ -102,9 +104,6 @@ public class EasyLoader {
         this.requestTransformer = requestTransformer;
         this.defaultBitmapConfig = defaultBitmapConfig;
 
-        this.stats = stats;
-
-        this.targetToDeferredRequestCreator = new WeakHashMap<ImageView, DeferredRequestCreator>();
         int builtInHandlers = 7; // Adjust this as internal handlers are added or removed.
         int extraCount = (extraRequestHandlers != null ? extraRequestHandlers.size() : 0);
         List<RequestHandler> allRequestHandlers = new ArrayList<>(builtInHandlers + extraCount);
@@ -118,10 +117,32 @@ public class EasyLoader {
         allRequestHandlers.add(new NetworkRequestHandler(dispatcher.downloader));
         requestHandlers = Collections.unmodifiableList(allRequestHandlers);
 
-        this.targetToAction = new WeakHashMap<Object, Action>();
-        this.referenceQueue = new ReferenceQueue<Object>();
+        this.stats = stats;
+        this.targetToAction = new WeakHashMap<>();
+        this.targetToDeferredRequestCreator = new WeakHashMap<>();
+        this.indicatorsEnabled = indicatorsEnabled;
+        this.loggingEnabled = loggingEnabled;
+        this.referenceQueue = new ReferenceQueue<>();
         this.cleanupThread = new CleanupThread(referenceQueue, HANDLER);
         this.cleanupThread.start();
+    }
+
+    public void shutdown() {
+        if (this == singleton) {
+            throw new UnsupportedOperationException("Default singleton instance cannot be shutdown.");
+        }
+        if (shutdown) {
+            return;
+        }
+        cache.clear();
+        cleanupThread.shutdown();
+        stats.shutdown();
+        dispatcher.shutdown();
+        for (DeferredRequestCreator deferredRequestCreator : targetToDeferredRequestCreator.values()) {
+            deferredRequestCreator.cancel();
+        }
+        targetToDeferredRequestCreator.clear();
+        shutdown = true;
     }
 
     public Dispatcher getDispatcher() {
@@ -391,12 +412,8 @@ public class EasyLoader {
         return context;
     }
 
-    public Bitmap.Config getBitmapConfig() {
-        return bitmapConfig;
-    }
-
     public RequestCreator load(Uri uri) {
-        return null;
+        return new RequestCreator(this, uri, 0);
     }
 
     static class Builder {
@@ -411,9 +428,13 @@ public class EasyLoader {
         private       CacheManager<String, Bitmap> diskCacheManager;
         private       File                         cacheDirectory;
         private       OnLoadListener               listener;
+        private       RequestTransformer           transformer;
         private       ExecutorService              service;
         private       Bitmap.Config                defaultBitmapConfig;
         private       Downloader                   downloader;
+        private       List<RequestHandler>         requestHandlers;
+        private       boolean                      indicatorsEnabled;
+        private       boolean                      loggingEnabled;
         private long maxMemoryCacheSize = DEFAULT_MEMORY_CACHE_SIZE;
         private long maxDiskCacheSize   = DEFAULT_DISK_CACHE_SIZE;
 
@@ -461,7 +482,7 @@ public class EasyLoader {
             }
 
 
-            EasyLoader loader = new EasyLoader(null, null, null, null, null, null, null, null);
+            EasyLoader loader = new EasyLoader(null, null, null, null, null, null, null, null, true, true);
             loader.apply(Builder.this);
             return loader;
         }

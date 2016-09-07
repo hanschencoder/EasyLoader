@@ -43,7 +43,7 @@ public class RequestCreator {
     private static final AtomicInteger nextId = new AtomicInteger();
 
     private final EasyLoader      loader;
-    private final Request.Builder data;
+    private final Request.Builder builder;
 
     private boolean noFade;
     private boolean deferred;
@@ -56,12 +56,12 @@ public class RequestCreator {
     private Drawable errorDrawable;
     private Object   tag;
 
-    RequestCreator(EasyLoader loader, Uri uri, int resourceId) {
-//        if (picasso.shutdown) {
-//            throw new IllegalStateException("Picasso instance already shut down. Cannot submit new requests.");
-//        }
+    public RequestCreator(EasyLoader loader, Uri uri, int resourceId) {
+        if (loader.shutdown) {
+            throw new IllegalStateException("EasyLoader instance already shut down. Cannot submit new requests.");
+        }
         this.loader = loader;
-        this.data = new Request.Builder(uri, resourceId, loader.getBitmapConfig());
+        this.builder = new Request.Builder(uri, resourceId, loader.defaultBitmapConfig);
     }
 
     public RequestCreator noPlaceholder() {
@@ -160,57 +160,57 @@ public class RequestCreator {
     }
 
     public RequestCreator resize(int targetWidth, int targetHeight) {
-        data.resize(targetWidth, targetHeight);
+        builder.resize(targetWidth, targetHeight);
         return this;
     }
 
     public RequestCreator centerCrop() {
-        data.centerCrop();
+        builder.centerCrop();
         return this;
     }
 
     public RequestCreator centerInside() {
-        data.centerInside();
+        builder.centerInside();
         return this;
     }
 
     public RequestCreator onlyScaleDown() {
-        data.onlyScaleDown();
+        builder.onlyScaleDown();
         return this;
     }
 
     public RequestCreator rotate(float degrees) {
-        data.rotate(degrees);
+        builder.rotate(degrees);
         return this;
     }
 
     public RequestCreator rotate(float degrees, float pivotX, float pivotY) {
-        data.rotate(degrees, pivotX, pivotY);
+        builder.rotate(degrees, pivotX, pivotY);
         return this;
     }
 
     public RequestCreator config(Bitmap.Config config) {
-        data.config(config);
+        builder.config(config);
         return this;
     }
 
     public RequestCreator stableKey(String stableKey) {
-        data.stableKey(stableKey);
+        builder.stableKey(stableKey);
         return this;
     }
 
     public RequestCreator priority(Priority priority) {
-        data.priority(priority);
+        builder.priority(priority);
         return this;
     }
 
     public RequestCreator transform(Transformation transformation) {
-        data.transform(transformation);
+        builder.transform(transformation);
         return this;
     }
 
     public RequestCreator transform(List<? extends Transformation> transformations) {
-        data.transform(transformations);
+        builder.transform(transformations);
         return this;
     }
 
@@ -254,7 +254,7 @@ public class RequestCreator {
     }
 
     public RequestCreator purgeable() {
-        data.purgeable();
+        builder.purgeable();
         return this;
     }
 
@@ -263,21 +263,26 @@ public class RequestCreator {
         return this;
     }
 
+    /**
+     * 创建请求并同步等待返回结果，注意请不要在主线程中调用
+     *
+     * @return
+     * @throws IOException
+     */
     public Bitmap get() throws IOException {
-        long started = System.nanoTime();
         ThreadChecker.checkNotMain();
-
         if (deferred) {
             throw new IllegalStateException("Fit cannot be used with get.");
         }
-        if (!data.hasImage()) {
+        if (!builder.hasImage()) {
             return null;
         }
 
-        Request finalData = createRequest(started);
-        String key = Utils.createKey(finalData, new StringBuilder());
+        long started = System.nanoTime();
+        Request finalRequest = createRequest(started);
+        String key = Utils.createKey(finalRequest, new StringBuilder());
 
-        Action action = new GetAction(loader, finalData, memoryPolicy, networkPolicy, tag, key);
+        Action action = new GetAction(loader, finalRequest, memoryPolicy, networkPolicy, tag, key);
         return BitmapHunter.forRequest(loader, loader.getDispatcher(), loader.cache, loader.stats, action).hunt();
     }
 
@@ -306,10 +311,10 @@ public class RequestCreator {
         if (deferred) {
             throw new IllegalStateException("Fit cannot be used with fetch.");
         }
-        if (data.hasImage()) {
+        if (builder.hasImage()) {
             // Fetch requests have lower priority by default.
-            if (!data.hasPriority()) {
-                data.priority(Priority.LOW);
+            if (!builder.hasPriority()) {
+                builder.priority(Priority.LOW);
             }
 
             Request request = createRequest(started);
@@ -389,7 +394,7 @@ public class RequestCreator {
             throw new IllegalStateException("Fit cannot be used with a Target.");
         }
 
-        if (!data.hasImage()) {
+        if (!builder.hasImage()) {
             loader.cancelRequest(target);
             target.onPrepareLoad(setPlaceholder ? getPlaceholderDrawable() : null);
             return;
@@ -504,7 +509,7 @@ public class RequestCreator {
             throw new IllegalArgumentException("Target must not be null.");
         }
 
-        if (!data.hasImage()) {
+        if (!builder.hasImage()) {
             loader.cancelRequest(target);
             if (setPlaceholder) {
                 PicassoDrawable.setPlaceholder(target, getPlaceholderDrawable());
@@ -513,7 +518,7 @@ public class RequestCreator {
         }
 
         if (deferred) {
-            if (data.hasSize()) {
+            if (builder.hasSize()) {
                 throw new IllegalStateException("Fit cannot be used with resize.");
             }
             int width = target.getWidth();
@@ -525,7 +530,7 @@ public class RequestCreator {
                 loader.defer(target, new DeferredRequestCreator(this, target, callback));
                 return;
             }
-            data.resize(width, height);
+            builder.resize(width, height);
         }
 
         Request request = createRequest(started);
@@ -567,29 +572,12 @@ public class RequestCreator {
      * Create the request optionally passing it through the request transformer.
      */
     private Request createRequest(long started) {
-        int id = nextId.getAndIncrement();
 
-        Request request = data.build();
-        request.id = id;
+        Request request = loader.transformRequest(builder.build());
+        request.id = nextId.getAndIncrement();
         request.started = started;
 
-        boolean loggingEnabled = loader.isLoggingEnabled();
-        if (loggingEnabled) {
-            log(Utils.OWNER_MAIN, Utils.VERB_CREATED, request.plainId(), request.toString());
-        }
-
-        Request transformed = loader.transformRequest(request);
-        if (transformed != request) {
-            // If the request was changed, copy over the id and timestamp from the original.
-            transformed.id = id;
-            transformed.started = started;
-
-            if (loggingEnabled) {
-                log(Utils.OWNER_MAIN, Utils.VERB_CHANGED, transformed.logId(), "into " + transformed);
-            }
-        }
-
-        return transformed;
+        return request;
     }
 
     private void performRemoteViewInto(RemoteViewsAction action) {

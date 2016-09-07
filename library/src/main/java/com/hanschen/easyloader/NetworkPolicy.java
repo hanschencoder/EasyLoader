@@ -22,19 +22,17 @@ package com.hanschen.easyloader;
 public enum NetworkPolicy {
 
     /**
-     * Skips checking the disk cache and forces loading through the network.
+     * 不从本地查找是否有缓存
      */
     NO_CACHE(1 << 0),
 
     /**
-     * Skips storing the result into the disk cache.
-     * <p/>
-     * <em>Note</em>: At this time this is only supported if you are using OkHttp.
+     * 不把请求结果缓存到本地
      */
     NO_STORE(1 << 1),
 
     /**
-     * Forces the request through the disk cache only, skipping network.
+     * 只从本地缓存读取，不使用网络
      */
     OFFLINE(1 << 2);
 

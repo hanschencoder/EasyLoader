@@ -21,11 +21,11 @@ public class Request {
     private static final long TOO_LONG_LOG = TimeUnit.SECONDS.toNanos(5);
 
     /**
-     * A unique ID for the request.
+     * 请求的唯一id，每个请求都自增1
      */
     int  id;
     /**
-     * The time that the request was first submitted (in nanos).
+     * 第一次提交的时间(in nanos).
      */
     long started;
     /**
@@ -34,15 +34,11 @@ public class Request {
     public int networkPolicy;
 
     /**
-     * The image URI.
-     * <p/>
-     * This is mutually exclusive with {@link #resourceId}.
+     * 图片uri
      */
     public final Uri                  uri;
     /**
-     * The image resource ID.
-     * <p/>
-     * This is mutually exclusive with {@link #uri}.
+     * 资源id
      */
     public final int                  resourceId;
     /**
@@ -55,28 +51,24 @@ public class Request {
      */
     public final List<Transformation> transformations;
     /**
-     * Target image width for resizing.
+     * 目标宽度
      */
     public final int                  targetWidth;
     /**
-     * Target image height for resizing.
+     * 目标高度
      */
     public final int                  targetHeight;
     /**
-     * True if the final image should use the 'centerCrop' scale technique.
-     * <p/>
-     * This is mutually exclusive with {@link #centerInside}.
+     * 是否需要centerCrop，一般与centerInside互斥
      */
     public final boolean              centerCrop;
     /**
-     * True if the final image should use the 'centerInside' scale technique.
-     * <p/>
-     * This is mutually exclusive with {@link #centerCrop}.
+     * 是否需要centerInside，一般与centerCrop互斥
      */
     public final boolean              centerInside;
     public final boolean              onlyScaleDown;
     /**
-     * Amount to rotate the image in degrees.
+     * 旋转角度
      */
     public final float                rotationDegrees;
     /**
@@ -96,11 +88,11 @@ public class Request {
      */
     public final boolean              purgeable;
     /**
-     * Target image config for decoding.
+     * 解码配置
      */
     public final Bitmap.Config        config;
     /**
-     * The priority of this request.
+     * 请求优先级
      */
     public final Priority             priority;
 
@@ -280,7 +272,7 @@ public class Request {
             purgeable = request.purgeable;
             onlyScaleDown = request.onlyScaleDown;
             if (request.transformations != null) {
-                transformations = new ArrayList<Transformation>(request.transformations);
+                transformations = new ArrayList<>(request.transformations);
             }
             config = request.config;
             priority = request.priority;
@@ -496,7 +488,7 @@ public class Request {
                 throw new IllegalArgumentException("Transformation key must not be null.");
             }
             if (transformations == null) {
-                transformations = new ArrayList<Transformation>(2);
+                transformations = new ArrayList<>(2);
             }
             transformations.add(transformation);
             return this;
