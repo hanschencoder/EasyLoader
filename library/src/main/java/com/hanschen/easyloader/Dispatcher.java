@@ -28,6 +28,7 @@ import android.os.HandlerThread;
 import android.os.Looper;
 import android.os.Message;
 
+import com.hanschen.easyloader.action.Action;
 import com.hanschen.easyloader.cache.LruMemoryCache;
 import com.hanschen.easyloader.downloader.Downloader;
 import com.hanschen.easyloader.util.Utils;
@@ -49,6 +50,7 @@ import static android.os.Process.THREAD_PRIORITY_BACKGROUND;
 import static com.hanschen.easyloader.MemoryPolicy.shouldWriteToMemoryCache;
 
 class Dispatcher {
+
     private static final int RETRY_DELAY       = 500;
     private static final int AIRPLANE_MODE_ON  = 1;
     private static final int AIRPLANE_MODE_OFF = 0;
@@ -74,8 +76,17 @@ class Dispatcher {
     final Context                        context;
     final ExecutorService                service;
     final Downloader                     downloader;
+    /**
+     * 已加入请求列表的任务，任务取消、完成或者失败后会移除
+     */
     final Map<String, BitmapHunter>      hunterMap;
+    /**
+     * 需重新进行请求任务列表，在重新联网的时候，会把当前列表的任务重新进行请求
+     */
     final Map<Object, Action>            failedActions;
+    /**
+     * 暂停请求的任务列表
+     */
     final Map<Object, Action>            pausedActions;
     final Set<Object>                    pausedTags;
     final Handler                        handler;
@@ -97,18 +108,19 @@ class Dispatcher {
         this.dispatcherThread = new DispatcherThread();
         this.dispatcherThread.start();
         Utils.flushStackLocalLeaks(dispatcherThread.getLooper());
+        this.handler = new DispatcherHandler(dispatcherThread.getLooper(), this);
+
         this.context = context;
         this.service = service;
-        this.hunterMap = new LinkedHashMap<String, BitmapHunter>();
-        this.failedActions = new WeakHashMap<Object, Action>();
-        this.pausedActions = new WeakHashMap<Object, Action>();
-        this.pausedTags = new HashSet<Object>();
-        this.handler = new DispatcherHandler(dispatcherThread.getLooper(), this);
+        this.hunterMap = new LinkedHashMap<>();
+        this.failedActions = new WeakHashMap<>();
+        this.pausedActions = new WeakHashMap<>();
+        this.pausedTags = new HashSet<>();
         this.downloader = downloader;
         this.mainThreadHandler = mainThreadHandler;
         this.cache = cache;
         this.stats = stats;
-        this.batch = new ArrayList<BitmapHunter>(4);
+        this.batch = new ArrayList<>(4);
         this.airplaneMode = Utils.isAirplaneModeOn(this.context);
         this.scansNetworkChanges = Utils.hasPermission(context, Manifest.permission.ACCESS_NETWORK_STATE);
         this.receiver = new NetworkBroadcastReceiver(this);
@@ -186,7 +198,7 @@ class Dispatcher {
             return;
         }
 
-        hunter = BitmapHunter.forRequest(action.getPicasso(), this, cache, stats, action);
+        hunter = BitmapHunter.forRequest(action.getLoader(), this, cache, stats, action);
         hunter.future = service.submit(hunter);
         hunterMap.put(action.getKey(), hunter);
         if (dismissFailed) {
@@ -295,33 +307,33 @@ class Dispatcher {
         }
 
         boolean hasConnectivity = networkInfo != null && networkInfo.isConnected();
-        boolean shouldRetryHunter = hunter.shouldRetry(airplaneMode, networkInfo);
+        boolean shouldRetry = hunter.shouldRetry(airplaneMode, networkInfo);
         boolean supportsReplay = hunter.supportsReplay();
 
-        if (!shouldRetryHunter) {
-            // Mark for replay only if we observe network info changes and support replay.
+        if (shouldRetry) {
+            // If we don't scan for network changes (missing permission) or if we have connectivity, retry.
+            if (!scansNetworkChanges || hasConnectivity) {
+                //noinspection ThrowableResultOfMethodCallIgnored
+//            if (hunter.getException() instanceof NetworkRequestHandler.ContentLengthException) {
+//                hunter.networkPolicy |= NetworkPolicy.NO_CACHE.index;
+//            }
+                hunter.future = service.submit(hunter);
+                return;
+            }
+
+            performError(hunter, supportsReplay);
+
+            if (supportsReplay) {
+                markForReplay(hunter);
+            }
+        } else {
+
+            //有权限检测网络状态变化且支持重新请求
             boolean willReplay = scansNetworkChanges && supportsReplay;
             performError(hunter, willReplay);
             if (willReplay) {
                 markForReplay(hunter);
             }
-            return;
-        }
-
-        // If we don't scan for network changes (missing permission) or if we have connectivity, retry.
-        if (!scansNetworkChanges || hasConnectivity) {
-            //noinspection ThrowableResultOfMethodCallIgnored
-//            if (hunter.getException() instanceof NetworkRequestHandler.ContentLengthException) {
-//                hunter.networkPolicy |= NetworkPolicy.NO_CACHE.index;
-//            }
-            hunter.future = service.submit(hunter);
-            return;
-        }
-
-        performError(hunter, supportsReplay);
-
-        if (supportsReplay) {
-            markForReplay(hunter);
         }
     }
 
@@ -337,7 +349,6 @@ class Dispatcher {
         List<BitmapHunter> copy = new ArrayList<BitmapHunter>(batch);
         batch.clear();
         mainThreadHandler.sendMessage(mainThreadHandler.obtainMessage(HUNTER_BATCH_COMPLETE, copy));
-        logBatch(copy);
     }
 
     void performError(BitmapHunter hunter, boolean willReplay) {
@@ -388,7 +399,7 @@ class Dispatcher {
     private void markForReplay(Action action) {
         Object target = action.getTarget();
         if (target != null) {
-            action.willReplay = true;
+            action.setWillReplay(true);
             failedActions.put(target, action);
         }
     }
@@ -403,11 +414,8 @@ class Dispatcher {
         }
     }
 
-    private void logBatch(List<BitmapHunter> copy) {
-        // TODO: 2016/8/31
-    }
-
     private static class DispatcherHandler extends Handler {
+
         private final Dispatcher dispatcher;
 
         public DispatcherHandler(Looper looper, Dispatcher dispatcher) {

@@ -37,7 +37,6 @@ class PicassoExecutorService extends ThreadPoolExecutor {
         adjustThreadCount(networkInfo);
     }
 
-
     public void adjustThreadCount(NetworkInfo info) {
         setThreadCount(getThreadCount(info));
     }

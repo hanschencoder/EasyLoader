@@ -13,10 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.hanschen.easyloader;
+package com.hanschen.easyloader.action;
 
 import android.graphics.Bitmap;
 
+import com.hanschen.easyloader.Callback;
+import com.hanschen.easyloader.EasyLoader;
+import com.hanschen.easyloader.LoadedFrom;
 import com.hanschen.easyloader.request.Request;
 
 public class FetchAction extends Action<Object> {
@@ -37,27 +40,27 @@ public class FetchAction extends Action<Object> {
     }
 
     @Override
-    void complete(Bitmap result, LoadedFrom from) {
+    public void complete(Bitmap result, LoadedFrom from) {
         if (callback != null) {
             callback.onSuccess();
         }
     }
 
     @Override
-    void error() {
+    public void error() {
         if (callback != null) {
             callback.onError();
         }
     }
 
     @Override
-    void cancel() {
+    public void cancel() {
         super.cancel();
         callback = null;
     }
 
     @Override
-    Object getTarget() {
+    public Object getTarget() {
         return target;
     }
 }

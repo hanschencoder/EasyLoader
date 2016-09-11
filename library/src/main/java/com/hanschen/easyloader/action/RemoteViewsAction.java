@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.hanschen.easyloader;
+package com.hanschen.easyloader.action;
 
 import android.app.Notification;
 import android.app.NotificationManager;
@@ -21,6 +21,8 @@ import android.appwidget.AppWidgetManager;
 import android.graphics.Bitmap;
 import android.widget.RemoteViews;
 
+import com.hanschen.easyloader.EasyLoader;
+import com.hanschen.easyloader.LoadedFrom;
 import com.hanschen.easyloader.request.Request;
 import com.hanschen.easyloader.util.Utils;
 
@@ -60,7 +62,7 @@ public abstract class RemoteViewsAction extends Action<RemoteViewsAction.RemoteV
     }
 
     @Override
-    RemoteViewsTarget getTarget() {
+    public RemoteViewsTarget getTarget() {
         if (target == null) {
             target = new RemoteViewsTarget(remoteViews, viewId);
         }

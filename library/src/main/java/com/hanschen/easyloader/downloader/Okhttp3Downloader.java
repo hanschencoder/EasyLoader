@@ -3,7 +3,7 @@ package com.hanschen.easyloader.downloader;
 import android.net.Uri;
 import android.support.annotation.NonNull;
 
-import com.hanschen.easyloader.bean.Response;
+import com.hanschen.easyloader.bean.NetworkResponse;
 
 import java.io.IOException;
 
@@ -22,7 +22,7 @@ public class Okhttp3Downloader implements Downloader {
     }
 
     @Override
-    public Response load(@NonNull Uri uri) throws IOException {
+    public NetworkResponse load(@NonNull Uri uri) throws IOException {
         Request.Builder builder = new Request.Builder().url(uri.toString());
         okhttp3.Response response = client.newCall(builder.build()).execute();
         int responseCode = response.code();
@@ -30,6 +30,6 @@ public class Okhttp3Downloader implements Downloader {
             response.body().close();
             throw new ResponseException(responseCode + " " + response.message(), responseCode);
         }
-        return new Response(response.body().byteStream(), response.body().contentLength());
+        return new NetworkResponse(response.body().byteStream(), response.body().contentLength());
     }
 }

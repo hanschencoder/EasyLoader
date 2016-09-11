@@ -1,8 +1,6 @@
 package com.hanschen.easyloader.request;
 
-import android.graphics.BitmapFactory;
 import android.net.NetworkInfo;
-import android.support.annotation.Nullable;
 
 import java.io.IOException;
 
@@ -12,79 +10,33 @@ import java.io.IOException;
 public abstract class RequestHandler {
 
     /**
-     * Whether or not this {@link RequestHandler} can handle a request with the given {@link Request}.
+     * @return 当前RequestHandler是否可以处理这个request
      */
     public abstract boolean canHandleRequest(Request request);
 
     /**
-     * Loads an image for the given {@link Request}.
-     *
-     * @param request the data from which the image should be resolved.
+     * 处理request，返回结果
      */
-    @Nullable
     public abstract Result handle(Request request) throws IOException;
 
+    /**
+     * @return 重试最大次数
+     */
     public int getRetryCount() {
         return 0;
     }
 
+    /**
+     * @return 根据当前环境判断是否应重试
+     */
     public boolean shouldRetry(boolean airplaneMode, NetworkInfo info) {
         return false;
     }
 
+    /**
+     * @return 是否放入重新请求列表，若为true,则网络再次联通的时候将会重新请求
+     */
     public boolean supportsReplay() {
         return false;
-    }
-
-    /**
-     * Lazily create {@link BitmapFactory.Options} based in given
-     * {@link Request}, only instantiating them if needed.
-     */
-    public static BitmapFactory.Options createBitmapOptions(Request data) {
-        final boolean justBounds = data.hasSize();
-        final boolean hasConfig = data.config != null;
-        BitmapFactory.Options options = null;
-        if (justBounds || hasConfig || data.purgeable) {
-            options = new BitmapFactory.Options();
-            options.inJustDecodeBounds = justBounds;
-            options.inInputShareable = data.purgeable;
-            options.inPurgeable = data.purgeable;
-            if (hasConfig) {
-                options.inPreferredConfig = data.config;
-            }
-        }
-        return options;
-    }
-
-    public static boolean requiresInSampleSize(BitmapFactory.Options options) {
-        return options != null && options.inJustDecodeBounds;
-    }
-
-    public static void calculateInSampleSize(int reqWidth, int reqHeight, BitmapFactory.Options options, Request request) {
-        calculateInSampleSize(reqWidth, reqHeight, options.outWidth, options.outHeight, options, request);
-    }
-
-    public static void calculateInSampleSize(int reqWidth,
-                                             int reqHeight,
-                                             int width,
-                                             int height,
-                                             BitmapFactory.Options options,
-                                             Request request) {
-        int sampleSize = 1;
-        if (height > reqHeight || width > reqWidth) {
-            final int heightRatio;
-            final int widthRatio;
-            if (reqHeight == 0) {
-                sampleSize = (int) Math.floor((float) width / (float) reqWidth);
-            } else if (reqWidth == 0) {
-                sampleSize = (int) Math.floor((float) height / (float) reqHeight);
-            } else {
-                heightRatio = (int) Math.floor((float) height / (float) reqHeight);
-                widthRatio = (int) Math.floor((float) width / (float) reqWidth);
-                sampleSize = request.centerInside ? Math.max(heightRatio, widthRatio) : Math.min(heightRatio, widthRatio);
-            }
-        }
-        options.inSampleSize = sampleSize;
-        options.inJustDecodeBounds = false;
     }
 }

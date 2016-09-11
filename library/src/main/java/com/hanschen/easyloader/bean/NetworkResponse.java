@@ -5,12 +5,12 @@ import java.io.InputStream;
 /**
  * Created by Hans.Chen on 2016/8/1.
  */
-public class Response {
+public class NetworkResponse {
 
     private final InputStream stream;
     private final long        contentLength;
 
-    public Response(InputStream stream, long contentLength) {
+    public NetworkResponse(InputStream stream, long contentLength) {
         if (stream == null) {
             throw new IllegalArgumentException("Stream may not be null.");
         }

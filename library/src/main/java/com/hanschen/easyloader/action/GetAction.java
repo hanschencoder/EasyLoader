@@ -13,10 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.hanschen.easyloader;
+package com.hanschen.easyloader.action;
 
 import android.graphics.Bitmap;
 
+import com.hanschen.easyloader.EasyLoader;
+import com.hanschen.easyloader.LoadedFrom;
 import com.hanschen.easyloader.request.Request;
 
 public class GetAction extends Action<Void> {
@@ -25,7 +27,7 @@ public class GetAction extends Action<Void> {
     }
 
     @Override
-    void complete(Bitmap result, LoadedFrom from) {
+    public void complete(Bitmap result, LoadedFrom from) {
     }
 
     @Override

@@ -13,11 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.hanschen.easyloader;
+package com.hanschen.easyloader.action;
 
 import android.graphics.Bitmap;
 import android.graphics.drawable.Drawable;
 
+import com.hanschen.easyloader.EasyLoader;
+import com.hanschen.easyloader.LoadedFrom;
+import com.hanschen.easyloader.Target;
 import com.hanschen.easyloader.request.Request;
 
 public final class TargetAction extends Action<Target> {
@@ -35,7 +38,7 @@ public final class TargetAction extends Action<Target> {
     }
 
     @Override
-    void complete(Bitmap result, LoadedFrom from) {
+    public void complete(Bitmap result, LoadedFrom from) {
         if (result == null) {
             throw new AssertionError(String.format("Attempted to complete action with no result!\n%s", this));
         }
@@ -49,7 +52,7 @@ public final class TargetAction extends Action<Target> {
     }
 
     @Override
-    void error() {
+    public void error() {
         Target target = getTarget();
         if (target != null) {
             if (errorResId != 0) {

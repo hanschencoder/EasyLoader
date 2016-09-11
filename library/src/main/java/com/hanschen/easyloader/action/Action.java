@@ -13,11 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.hanschen.easyloader;
+package com.hanschen.easyloader.action;
 
 import android.graphics.Bitmap;
 import android.graphics.drawable.Drawable;
 
+import com.hanschen.easyloader.EasyLoader;
+import com.hanschen.easyloader.LoadedFrom;
+import com.hanschen.easyloader.Priority;
 import com.hanschen.easyloader.request.Request;
 
 import java.lang.ref.ReferenceQueue;
@@ -26,11 +29,15 @@ import java.lang.ref.WeakReference;
 public abstract class Action<T> {
 
     public static class RequestWeakReference<M> extends WeakReference<M> {
-        final Action action;
+        private final Action action;
 
         public RequestWeakReference(Action action, M referent, ReferenceQueue<? super M> q) {
             super(referent, q);
             this.action = action;
+        }
+
+        public Action getAction() {
+            return action;
         }
     }
 
@@ -70,19 +77,19 @@ public abstract class Action<T> {
         this.tag = (tag != null ? tag : this);
     }
 
-    abstract void complete(Bitmap result, LoadedFrom from);
+    public abstract void complete(Bitmap result, LoadedFrom from);
 
-    abstract void error();
+    public abstract void error();
 
-    void cancel() {
+    public void cancel() {
         cancelled = true;
     }
 
-    Request getRequest() {
+    public Request getRequest() {
         return request;
     }
 
-    T getTarget() {
+    public T getTarget() {
         return target == null ? null : target.get();
     }
 
@@ -90,31 +97,36 @@ public abstract class Action<T> {
         return key;
     }
 
-    boolean isCancelled() {
+    public boolean isCancelled() {
         return cancelled;
     }
 
-    boolean willReplay() {
+
+    public void setWillReplay(boolean willReplay) {
+        this.willReplay = willReplay;
+    }
+
+    public boolean willReplay() {
         return willReplay;
     }
 
-    int getMemoryPolicy() {
+    public int getMemoryPolicy() {
         return memoryPolicy;
     }
 
-    int getNetworkPolicy() {
+    public int getNetworkPolicy() {
         return networkPolicy;
     }
 
-    EasyLoader getPicasso() {
+    public EasyLoader getLoader() {
         return loader;
     }
 
-    Priority getPriority() {
+    public Priority getPriority() {
         return request.priority;
     }
 
-    Object getTag() {
+    public Object getTag() {
         return tag;
     }
 }

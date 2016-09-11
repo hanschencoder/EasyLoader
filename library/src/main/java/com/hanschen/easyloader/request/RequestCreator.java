@@ -8,22 +8,22 @@ import android.net.Uri;
 import android.widget.ImageView;
 import android.widget.RemoteViews;
 
-import com.hanschen.easyloader.Action;
+import com.hanschen.easyloader.action.Action;
 import com.hanschen.easyloader.BitmapHunter;
 import com.hanschen.easyloader.Callback;
 import com.hanschen.easyloader.DeferredRequestCreator;
 import com.hanschen.easyloader.EasyLoader;
-import com.hanschen.easyloader.FetchAction;
-import com.hanschen.easyloader.GetAction;
-import com.hanschen.easyloader.ImageViewAction;
+import com.hanschen.easyloader.action.FetchAction;
+import com.hanschen.easyloader.action.GetAction;
+import com.hanschen.easyloader.action.ImageViewAction;
 import com.hanschen.easyloader.LoadedFrom;
 import com.hanschen.easyloader.MemoryPolicy;
 import com.hanschen.easyloader.NetworkPolicy;
 import com.hanschen.easyloader.PicassoDrawable;
 import com.hanschen.easyloader.Priority;
-import com.hanschen.easyloader.RemoteViewsAction;
+import com.hanschen.easyloader.action.RemoteViewsAction;
 import com.hanschen.easyloader.Target;
-import com.hanschen.easyloader.TargetAction;
+import com.hanschen.easyloader.action.TargetAction;
 import com.hanschen.easyloader.Transformation;
 import com.hanschen.easyloader.util.ThreadChecker;
 import com.hanschen.easyloader.util.Utils;
@@ -286,103 +286,40 @@ public class RequestCreator {
     }
 
     /**
-     * Asynchronously fulfills the request without a {@link ImageView} or {@link Target}. This is
-     * useful when you want to warm up the cache with an image.
-     * <p/>
-     * <em>Note:</em> It is safe to invoke this method from any thread.
+     * 异步请求图片，可用作事先对图片进行缓存，可在任意线程调用
      */
     public void fetch() {
         fetch(null);
     }
 
     /**
-     * Asynchronously fulfills the request without a {@link ImageView} or {@link Target},
-     * and invokes the target {@link Callback} with the result. This is useful when you want to warm
-     * up the cache with an image.
-     * <p/>
-     * <em>Note:</em> The {@link Callback} param is a strong reference and will prevent your
-     * {@link android.app.Activity} or {@link android.app.Fragment} from being garbage collected
-     * until the request is completed.
+     * 异步请求图片，可用作事先对图片进行缓存，可在任意线程调用,callback会被强引用，从而可能导致callback相关的Activity或Fragment在请求完成之前不能被释放
      */
     public void fetch(Callback callback) {
-        long started = System.nanoTime();
 
         if (deferred) {
             throw new IllegalStateException("Fit cannot be used with fetch.");
         }
         if (builder.hasImage()) {
-            // Fetch requests have lower priority by default.
             if (!builder.hasPriority()) {
                 builder.priority(Priority.LOW);
             }
 
-            Request request = createRequest(started);
-            String key = Utils.createKey(request, new StringBuilder());
+            long started = System.nanoTime();
+            Request finalRequest = createRequest(started);
+            String key = Utils.createKey(finalRequest, new StringBuilder());
 
-            if (shouldReadFromMemoryCache(memoryPolicy)) {
-                Bitmap bitmap = loader.quickMemoryCacheCheck(key);
-                if (bitmap != null) {
-                    if (callback != null) {
-                        callback.onSuccess();
-                    }
-                    return;
-                }
-            }
-
-            Action action = new FetchAction(loader, request, memoryPolicy, networkPolicy, tag, key, callback);
+            Action action = new FetchAction(loader, finalRequest, memoryPolicy, networkPolicy, tag, key, callback);
             loader.submit(action);
         }
     }
 
     /**
-     * Asynchronously fulfills the request into the specified {@link Target}. In most cases, you
-     * should use this when you are dealing with a custom {@link android.view.View View} or view
-     * holder which should implement the {@link Target} interface.
-     * <p/>
-     * Implementing on a {@link android.view.View View}:
-     * <blockquote><pre>
-     * public class ProfileView extends FrameLayout implements Target {
-     *   {@literal @}Override public void onBitmapLoaded(Bitmap bitmap, LoadedFrom from) {
-     *     setBackgroundDrawable(new BitmapDrawable(bitmap));
-     *   }
-     * <p/>
-     *   {@literal @}Override public void onBitmapFailed() {
-     *     setBackgroundResource(R.drawable.profile_error);
-     *   }
-     * <p/>
-     *   {@literal @}Override public void onPrepareLoad(Drawable placeHolderDrawable) {
-     *     frame.setBackgroundDrawable(placeHolderDrawable);
-     *   }
-     * }
-     * </pre></blockquote>
-     * Implementing on a view holder object for use inside of an adapter:
-     * <blockquote><pre>
-     * public class ViewHolder implements Target {
-     *   public FrameLayout frame;
-     *   public TextView name;
-     * <p/>
-     *   {@literal @}Override public void onBitmapLoaded(Bitmap bitmap, LoadedFrom from) {
-     *     frame.setBackgroundDrawable(new BitmapDrawable(bitmap));
-     *   }
-     * <p/>
-     *   {@literal @}Override public void onBitmapFailed() {
-     *     frame.setBackgroundResource(R.drawable.profile_error);
-     *   }
-     * <p/>
-     *   {@literal @}Override public void onPrepareLoad(Drawable placeHolderDrawable) {
-     *     frame.setBackgroundDrawable(placeHolderDrawable);
-     *   }
-     * }
-     * </pre></blockquote>
-     * <p/>
-     * <em>Note:</em> This method keeps a weak reference to the {@link Target} instance and will be
-     * garbage collected if you do not keep a strong reference to it. To receive callbacks when an
-     * image is loaded use {@link #into(android.widget.ImageView, Callback)}.
+     * 异步获取图片，一般而言，{@link Target}应该是一个{@link android.view.View View}，该方法持有target的弱引用
      */
     public void into(Target target) {
-        long started = System.nanoTime();
-        ThreadChecker.checkMain();
 
+        ThreadChecker.checkMain();
         if (target == null) {
             throw new IllegalArgumentException("Target must not be null.");
         }
@@ -396,11 +333,12 @@ public class RequestCreator {
             return;
         }
 
-        Request request = createRequest(started);
-        String requestKey = Utils.createKey(request);
+        long started = System.nanoTime();
+        Request finalRequest = createRequest(started);
+        String key = Utils.createKey(finalRequest);
 
         if (shouldReadFromMemoryCache(memoryPolicy)) {
-            Bitmap bitmap = loader.quickMemoryCacheCheck(requestKey);
+            Bitmap bitmap = loader.quickMemoryCacheCheck(key);
             if (bitmap != null) {
                 loader.cancelRequest(target);
                 target.onBitmapLoaded(bitmap, LoadedFrom.MEMORY);
@@ -410,24 +348,18 @@ public class RequestCreator {
 
         target.onPrepareLoad(setPlaceholder ? getPlaceholderDrawable() : null);
 
-        Action action = new TargetAction(loader, target, request, memoryPolicy, networkPolicy, errorDrawable, requestKey, tag, errorResId);
+        Action action = new TargetAction(loader, target, finalRequest, memoryPolicy, networkPolicy, errorDrawable, key, tag, errorResId);
         loader.enqueueAndSubmit(action);
     }
 
-    /**
-     * Asynchronously fulfills the request into the specified {@link RemoteViews} object with the
-     * given {@code viewId}. This is used for loading bitmaps into a {@link Notification}.
-     */
     public void into(RemoteViews remoteViews, int viewId, int notificationId, Notification notification) {
         into(remoteViews, viewId, notificationId, notification, null);
     }
 
     /**
-     * Asynchronously fulfills the request into the specified {@link RemoteViews} object with the
-     * given {@code viewId}. This is used for loading bitmaps into a {@link Notification}.
+     * 为{@link RemoteViews}异步加载图片，可用于Notification
      */
     public void into(RemoteViews remoteViews, int viewId, int notificationId, Notification notification, String notificationTag) {
-        long started = System.nanoTime();
 
         if (remoteViews == null) {
             throw new IllegalArgumentException("RemoteViews must not be null.");
@@ -442,8 +374,9 @@ public class RequestCreator {
             throw new IllegalArgumentException("Cannot use placeholder or error drawables with remote views.");
         }
 
+        long started = System.nanoTime();
         Request request = createRequest(started);
-        String key = Utils.createKey(request, new StringBuilder()); // Non-main thread needs own builder.
+        String key = Utils.createKey(request, new StringBuilder());
 
         RemoteViewsAction action = new RemoteViewsAction.NotificationAction(loader, request, remoteViews, viewId, notificationId, notification, notificationTag, memoryPolicy, networkPolicy, key, tag, errorResId);
 
@@ -479,10 +412,7 @@ public class RequestCreator {
     }
 
     /**
-     * Asynchronously fulfills the request into the specified {@link ImageView}.
-     * <p/>
-     * <em>Note:</em> This method keeps a weak reference to the {@link ImageView} instance and will
-     * automatically support object recycling.
+     * 为{@link ImageView}异步加载图片，持有ImageView的弱引用
      */
     public void into(ImageView target) {
         into(target, null);
@@ -498,7 +428,7 @@ public class RequestCreator {
      * {@link EasyLoader#cancelRequest(android.widget.ImageView)} call to prevent temporary leaking.
      */
     public void into(ImageView target, Callback callback) {
-        long started = System.nanoTime();
+
         ThreadChecker.checkMain();
 
         if (target == null) {
@@ -529,11 +459,12 @@ public class RequestCreator {
             builder.resize(width, height);
         }
 
+        long started = System.nanoTime();
         Request request = createRequest(started);
-        String requestKey = Utils.createKey(request);
+        String key = Utils.createKey(request);
 
         if (shouldReadFromMemoryCache(memoryPolicy)) {
-            Bitmap bitmap = loader.quickMemoryCacheCheck(requestKey);
+            Bitmap bitmap = loader.quickMemoryCacheCheck(key);
             if (bitmap != null) {
                 loader.cancelRequest(target);
                 PicassoDrawable.setBitmap(target, loader.context, bitmap, LoadedFrom.MEMORY, noFade, loader.indicatorsEnabled);
@@ -548,7 +479,7 @@ public class RequestCreator {
             PicassoDrawable.setPlaceholder(target, getPlaceholderDrawable());
         }
 
-        Action action = new ImageViewAction(loader, target, request, memoryPolicy, networkPolicy, errorResId, errorDrawable, requestKey, tag, callback, noFade);
+        Action action = new ImageViewAction(loader, target, request, memoryPolicy, networkPolicy, errorResId, errorDrawable, key, tag, callback, noFade);
 
         loader.enqueueAndSubmit(action);
     }
@@ -557,13 +488,10 @@ public class RequestCreator {
         if (placeholderResId != 0) {
             return loader.context.getResources().getDrawable(placeholderResId);
         } else {
-            return placeholderDrawable; // This may be null which is expected and desired behavior.
+            return placeholderDrawable;
         }
     }
 
-    /**
-     * Create the request optionally passing it through the request transformer.
-     */
     private Request createRequest(long started) {
 
         Request request = loader.transformRequest(builder.build());

@@ -20,11 +20,13 @@ import android.graphics.BitmapFactory;
 import android.graphics.Matrix;
 import android.net.NetworkInfo;
 
+import com.hanschen.easyloader.action.Action;
 import com.hanschen.easyloader.cache.LruMemoryCache;
 import com.hanschen.easyloader.downloader.ResponseException;
 import com.hanschen.easyloader.request.Request;
 import com.hanschen.easyloader.request.RequestHandler;
 import com.hanschen.easyloader.request.Result;
+import com.hanschen.easyloader.util.BitmapUtils;
 import com.hanschen.easyloader.util.CloseUtils;
 import com.hanschen.easyloader.util.Utils;
 
@@ -106,6 +108,24 @@ public class BitmapHunter implements Runnable {
         this.retryCount = requestHandler.getRetryCount();
     }
 
+    public static BitmapHunter forRequest(EasyLoader loader,
+                                          Dispatcher dispatcher,
+                                          LruMemoryCache<String, Bitmap> cache,
+                                          Stats stats,
+                                          Action action) {
+        Request request = action.getRequest();
+        List<RequestHandler> requestHandlers = loader.getRequestHandlers();
+
+        for (int i = 0, count = requestHandlers.size(); i < count; i++) {
+            RequestHandler handler = requestHandlers.get(i);
+            if (handler.canHandleRequest(request)) {
+                return new BitmapHunter(loader, dispatcher, cache, stats, action, handler);
+            }
+        }
+
+        throw new IllegalStateException("Unrecognized type of request: " + request);
+    }
+
     /**
      * Decode a byte stream into a Bitmap. This method will take into account additional information
      * about the supplied request in order to do the decoding efficiently (such as through leveraging
@@ -117,8 +137,8 @@ public class BitmapHunter implements Runnable {
         markStream.allowMarksToExpire(false);
         long mark = markStream.savePosition(1024);
 
-        final BitmapFactory.Options options = RequestHandler.createBitmapOptions(request);
-        final boolean calculateSize = RequestHandler.requiresInSampleSize(options);
+        final BitmapFactory.Options options = BitmapUtils.createBitmapOptions(request);
+        final boolean calculateSize = BitmapUtils.requiresInSampleSize(options);
 
         boolean isWebPFile = Utils.isWebPFile(stream);
         boolean isPurgeable = request.purgeable && android.os.Build.VERSION.SDK_INT < 21;
@@ -130,13 +150,13 @@ public class BitmapHunter implements Runnable {
             byte[] bytes = Utils.toByteArray(stream);
             if (calculateSize) {
                 BitmapFactory.decodeByteArray(bytes, 0, bytes.length, options);
-                RequestHandler.calculateInSampleSize(request.targetWidth, request.targetHeight, options, request);
+                BitmapUtils.calculateInSampleSize(request.targetWidth, request.targetHeight, options, request);
             }
             return BitmapFactory.decodeByteArray(bytes, 0, bytes.length, options);
         } else {
             if (calculateSize) {
                 BitmapFactory.decodeStream(stream, null, options);
-                RequestHandler.calculateInSampleSize(request.targetWidth, request.targetHeight, options, request);
+                BitmapUtils.calculateInSampleSize(request.targetWidth, request.targetHeight, options, request);
                 markStream.reset(mark);
             }
             markStream.allowMarksToExpire(true);
@@ -182,6 +202,12 @@ public class BitmapHunter implements Runnable {
         }
     }
 
+    /**
+     * 抓取Bitmap并对其进行处理
+     *
+     * @return 处理完成后的Bitmap
+     * @throws IOException
+     */
     public Bitmap hunt() throws IOException {
 
         Bitmap bitmap = null;
@@ -307,8 +333,7 @@ public class BitmapHunter implements Runnable {
     }
 
     boolean shouldRetry(boolean airplaneMode, NetworkInfo info) {
-        boolean hasRetries = retryCount > 0;
-        if (!hasRetries) {
+        if (retryCount <= 0) {
             return false;
         }
         retryCount--;
@@ -367,24 +392,6 @@ public class BitmapHunter implements Runnable {
         builder.replace(Utils.THREAD_PREFIX.length(), builder.length(), name);
 
         Thread.currentThread().setName(builder.toString());
-    }
-
-    public static BitmapHunter forRequest(EasyLoader loader,
-                                          Dispatcher dispatcher,
-                                          LruMemoryCache<String, Bitmap> cache,
-                                          Stats stats,
-                                          Action action) {
-        Request request = action.getRequest();
-        List<RequestHandler> requestHandlers = loader.getRequestHandlers();
-
-        for (int i = 0, count = requestHandlers.size(); i < count; i++) {
-            RequestHandler handler = requestHandlers.get(i);
-            if (handler.canHandleRequest(request)) {
-                return new BitmapHunter(loader, dispatcher, cache, stats, action, handler);
-            }
-        }
-
-        throw new IllegalStateException("Unrecognized type of request: " + request);
     }
 
     static Bitmap applyCustomTransformations(List<Transformation> transformations, Bitmap result) {

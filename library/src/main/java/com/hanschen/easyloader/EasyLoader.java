@@ -10,6 +10,7 @@ import android.os.Process;
 import android.support.annotation.NonNull;
 import android.widget.ImageView;
 
+import com.hanschen.easyloader.action.Action;
 import com.hanschen.easyloader.cache.CacheManager;
 import com.hanschen.easyloader.cache.LruDiskCache;
 import com.hanschen.easyloader.cache.LruMemoryCache;
@@ -54,7 +55,7 @@ public class EasyLoader {
     private final           OnLoadListener                         listener;
     private final           CleanupThread                          cleanupThread;
     public final            Stats                                  stats;
-    final                   Map<Object, Action>                    targetToAction;
+    private final           Map<Object, Action>                    targetToAction;
     final                   Map<ImageView, DeferredRequestCreator> targetToDeferredRequestCreator;
     public                  boolean                                shutdown;
 
@@ -196,16 +197,14 @@ public class EasyLoader {
         }
     };
 
-    public void cancelRequest(@NonNull ImageView view) {
-        // checkMain() is called from cancelExistingRequest()
+    public void cancelRequest(ImageView view) {
         if (view == null) {
             throw new IllegalArgumentException("view cannot be null.");
         }
         cancelExistingRequest(view);
     }
 
-    public void cancelRequest(@NonNull Target target) {
-        // checkMain() is called from cancelExistingRequest()
+    public void cancelRequest(Target target) {
         if (target == null) {
             throw new IllegalArgumentException("target cannot be null.");
         }
@@ -271,7 +270,6 @@ public class EasyLoader {
     public void enqueueAndSubmit(Action action) {
         Object target = action.getTarget();
         if (target != null && targetToAction.get(target) != action) {
-            // This will also check we are on the main thread.
             cancelExistingRequest(target);
             targetToAction.put(target, action);
         }
@@ -281,7 +279,7 @@ public class EasyLoader {
 
     void resumeAction(Action action) {
         Bitmap bitmap = null;
-        if (shouldReadFromMemoryCache(action.memoryPolicy)) {
+        if (shouldReadFromMemoryCache(action.getMemoryPolicy())) {
             bitmap = quickMemoryCacheCheck(action.getKey());
         }
 
@@ -352,7 +350,7 @@ public class EasyLoader {
                     Message message = handler.obtainMessage();
                     if (remove != null) {
                         message.what = Dispatcher.REQUEST_GCED;
-                        message.obj = remove.action;
+                        message.obj = remove.getAction();
                         handler.sendMessage(message);
                     } else {
                         message.recycle();

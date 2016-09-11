@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.hanschen.easyloader;
+package com.hanschen.easyloader.action;
 
 import android.content.Context;
 import android.graphics.Bitmap;
@@ -21,6 +21,10 @@ import android.graphics.drawable.AnimationDrawable;
 import android.graphics.drawable.Drawable;
 import android.widget.ImageView;
 
+import com.hanschen.easyloader.Callback;
+import com.hanschen.easyloader.EasyLoader;
+import com.hanschen.easyloader.LoadedFrom;
+import com.hanschen.easyloader.PicassoDrawable;
 import com.hanschen.easyloader.request.Request;
 
 public class ImageViewAction extends Action<ImageView> {
@@ -84,7 +88,7 @@ public class ImageViewAction extends Action<ImageView> {
     }
 
     @Override
-    void cancel() {
+    public void cancel() {
         super.cancel();
         if (callback != null) {
             callback = null;

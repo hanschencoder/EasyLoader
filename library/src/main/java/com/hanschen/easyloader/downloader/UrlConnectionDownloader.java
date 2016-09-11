@@ -19,7 +19,7 @@ import android.content.Context;
 import android.net.Uri;
 import android.support.annotation.NonNull;
 
-import com.hanschen.easyloader.bean.Response;
+import com.hanschen.easyloader.bean.NetworkResponse;
 
 import java.io.IOException;
 import java.net.HttpURLConnection;
@@ -46,7 +46,7 @@ public class UrlConnectionDownloader implements Downloader {
     }
 
     @Override
-    public Response load(@NonNull Uri uri) throws IOException {
+    public NetworkResponse load(@NonNull Uri uri) throws IOException {
 
         HttpURLConnection connection = openConnection(uri);
         int responseCode = connection.getResponseCode();
@@ -56,6 +56,6 @@ public class UrlConnectionDownloader implements Downloader {
         }
 
         long contentLength = connection.getHeaderFieldInt("Content-Length", -1);
-        return new Response(connection.getInputStream(), contentLength);
+        return new NetworkResponse(connection.getInputStream(), contentLength);
     }
 }
