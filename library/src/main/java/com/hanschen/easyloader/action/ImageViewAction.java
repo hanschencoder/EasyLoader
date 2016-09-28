@@ -47,9 +47,9 @@ public class ImageViewAction extends Action<ImageView> {
     }
 
     @Override
-    public void complete(Bitmap result, LoadedFrom from) {
+    public void onComplete(Bitmap result, LoadedFrom from) {
         if (result == null) {
-            throw new AssertionError(String.format("Attempted to complete action with no result!\n%s", this));
+            throw new AssertionError(String.format("Attempted to onComplete action with no result!\n%s", this));
         }
 
         ImageView target = this.target.get();
@@ -67,7 +67,7 @@ public class ImageViewAction extends Action<ImageView> {
     }
 
     @Override
-    public void error() {
+    public void onError() {
         ImageView target = this.target.get();
         if (target == null) {
             return;

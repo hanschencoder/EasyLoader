@@ -1,4 +1,4 @@
-package com.hanschen.easyloader;
+package com.hanschen.easyloader.example;
 
 import org.junit.Test;
 

@@ -129,7 +129,7 @@ class StrictLineReader implements Closeable {
             }
 
             // Read more data if we are at the end of the buffered data.
-            // Though it's an error to read after an exception, we will let {@code fillBuf()}
+            // Though it's an onError to read after an exception, we will let {@code fillBuf()}
             // throw again if that happens; thus we need to handle end == -1 as well as end == pos.
             if (pos >= end) {
                 fillBuf();

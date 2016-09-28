@@ -19,7 +19,7 @@ public class ThreadChecker {
         }
     }
 
-    public static boolean isMain() {
+    private static boolean isMain() {
         return Looper.getMainLooper().getThread() == Thread.currentThread();
     }
 }

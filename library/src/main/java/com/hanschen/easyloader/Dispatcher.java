@@ -49,7 +49,7 @@ import static android.net.ConnectivityManager.CONNECTIVITY_ACTION;
 import static android.os.Process.THREAD_PRIORITY_BACKGROUND;
 import static com.hanschen.easyloader.MemoryPolicy.shouldWriteToMemoryCache;
 
-class Dispatcher {
+public class Dispatcher {
 
     private static final int RETRY_DELAY       = 500;
     private static final int AIRPLANE_MODE_ON  = 1;
@@ -75,7 +75,6 @@ class Dispatcher {
     final DispatcherThread               dispatcherThread;
     final Context                        context;
     final ExecutorService                service;
-    final Downloader                     downloader;
     /**
      * 已加入请求列表的任务，任务取消、完成或者失败后会移除
      */
@@ -92,7 +91,6 @@ class Dispatcher {
     final Handler                        handler;
     final Handler                        mainThreadHandler;
     final LruMemoryCache<String, Bitmap> cache;
-    final Stats                          stats;
     final List<BitmapHunter>             batch;
     final NetworkBroadcastReceiver       receiver;
     final boolean                        scansNetworkChanges;
@@ -102,9 +100,7 @@ class Dispatcher {
     Dispatcher(Context context,
                ExecutorService service,
                Handler mainThreadHandler,
-               Downloader downloader,
-               LruMemoryCache<String, Bitmap> cache,
-               Stats stats) {
+               LruMemoryCache<String, Bitmap> cache) {
         this.dispatcherThread = new DispatcherThread();
         this.dispatcherThread.start();
         Utils.flushStackLocalLeaks(dispatcherThread.getLooper());
@@ -116,10 +112,8 @@ class Dispatcher {
         this.failedActions = new WeakHashMap<>();
         this.pausedActions = new WeakHashMap<>();
         this.pausedTags = new HashSet<>();
-        this.downloader = downloader;
         this.mainThreadHandler = mainThreadHandler;
         this.cache = cache;
-        this.stats = stats;
         this.batch = new ArrayList<>(4);
         this.airplaneMode = Utils.isAirplaneModeOn(this.context);
         this.scansNetworkChanges = Utils.hasPermission(context, Manifest.permission.ACCESS_NETWORK_STATE);
@@ -198,7 +192,7 @@ class Dispatcher {
             return;
         }
 
-        hunter = BitmapHunter.forRequest(action.getLoader(), this, cache, stats, action);
+        hunter = BitmapHunter.forRequest(action.getLoader(), this, cache, action);
         hunter.future = service.submit(hunter);
         hunterMap.put(action.getKey(), hunter);
         if (dismissFailed) {
@@ -220,7 +214,7 @@ class Dispatcher {
             pausedActions.remove(action.getTarget());
         }
 
-        Action remove = failedActions.remove(action.getTarget());
+        failedActions.remove(action.getTarget());
     }
 
     void performPauseTag(Object tag) {

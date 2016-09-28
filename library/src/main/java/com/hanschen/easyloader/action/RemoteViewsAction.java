@@ -49,13 +49,13 @@ public abstract class RemoteViewsAction extends Action<RemoteViewsAction.RemoteV
     }
 
     @Override
-    public void complete(Bitmap result, LoadedFrom from) {
+    public void onComplete(Bitmap result, LoadedFrom from) {
         remoteViews.setImageViewBitmap(viewId, result);
         update();
     }
 
     @Override
-    public void error() {
+    public void onError() {
         if (errorResId != 0) {
             setImageResource(errorResId);
         }

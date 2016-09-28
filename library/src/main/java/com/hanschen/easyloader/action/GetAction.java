@@ -27,10 +27,12 @@ public class GetAction extends Action<Void> {
     }
 
     @Override
-    public void complete(Bitmap result, LoadedFrom from) {
+    public void onComplete(Bitmap result, LoadedFrom from) {
+        //do nothing
     }
 
     @Override
-    public void error() {
+    public void onError() {
+        //do nothing
     }
 }

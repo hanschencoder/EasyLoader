@@ -8,23 +8,24 @@ import android.net.Uri;
 import android.widget.ImageView;
 import android.widget.RemoteViews;
 
-import com.hanschen.easyloader.action.Action;
 import com.hanschen.easyloader.BitmapHunter;
 import com.hanschen.easyloader.Callback;
 import com.hanschen.easyloader.DeferredRequestCreator;
+import com.hanschen.easyloader.Dispatcher;
 import com.hanschen.easyloader.EasyLoader;
-import com.hanschen.easyloader.action.FetchAction;
-import com.hanschen.easyloader.action.GetAction;
-import com.hanschen.easyloader.action.ImageViewAction;
 import com.hanschen.easyloader.LoadedFrom;
 import com.hanschen.easyloader.MemoryPolicy;
 import com.hanschen.easyloader.NetworkPolicy;
 import com.hanschen.easyloader.PicassoDrawable;
 import com.hanschen.easyloader.Priority;
-import com.hanschen.easyloader.action.RemoteViewsAction;
 import com.hanschen.easyloader.Target;
-import com.hanschen.easyloader.action.TargetAction;
 import com.hanschen.easyloader.Transformation;
+import com.hanschen.easyloader.action.Action;
+import com.hanschen.easyloader.action.FetchAction;
+import com.hanschen.easyloader.action.GetAction;
+import com.hanschen.easyloader.action.ImageViewAction;
+import com.hanschen.easyloader.action.RemoteViewsAction;
+import com.hanschen.easyloader.action.TargetAction;
 import com.hanschen.easyloader.util.ThreadChecker;
 import com.hanschen.easyloader.util.Utils;
 
@@ -41,8 +42,10 @@ public class RequestCreator {
 
     private static final AtomicInteger nextId = new AtomicInteger();
 
-    private final EasyLoader      loader;
-    private final Request.Builder builder;
+    private final EasyLoader         loader;
+    private final RequestTransformer requestTransformer;
+    private final Dispatcher         dispatcher;
+    private final Request.Builder    builder;
 
     private boolean noFade;
     private boolean deferred;
@@ -55,11 +58,17 @@ public class RequestCreator {
     private Drawable errorDrawable;
     private Object   tag;
 
-    public RequestCreator(EasyLoader loader, Uri uri, int resourceId) {
+    public RequestCreator(EasyLoader loader,
+                          Uri uri,
+                          int resourceId,
+                          RequestTransformer requestTransformer,
+                          Dispatcher dispatcher) {
         if (loader.shutdown) {
             throw new IllegalStateException("EasyLoader instance already shut down. Cannot submit new requests.");
         }
+        this.requestTransformer = requestTransformer;
         this.loader = loader;
+        this.dispatcher = dispatcher;
         this.builder = new Request.Builder(uri, resourceId, loader.defaultBitmapConfig);
     }
 
@@ -282,7 +291,7 @@ public class RequestCreator {
         String key = Utils.createKey(finalRequest, new StringBuilder());
 
         Action action = new GetAction(loader, finalRequest, memoryPolicy, networkPolicy, tag, key);
-        return BitmapHunter.forRequest(loader, loader.getDispatcher(), loader.cache, loader.stats, action).hunt();
+        return BitmapHunter.forRequest(loader, dispatcher, loader.cache, action).hunt();
     }
 
     /**
@@ -371,7 +380,7 @@ public class RequestCreator {
             throw new IllegalStateException("Fit cannot be used with RemoteViews.");
         }
         if (placeholderDrawable != null || placeholderResId != 0 || errorDrawable != null) {
-            throw new IllegalArgumentException("Cannot use placeholder or error drawables with remote views.");
+            throw new IllegalArgumentException("Cannot use placeholder or onError drawables with remote views.");
         }
 
         long started = System.nanoTime();
@@ -400,7 +409,7 @@ public class RequestCreator {
             throw new IllegalStateException("Fit cannot be used with remote views.");
         }
         if (placeholderDrawable != null || placeholderResId != 0 || errorDrawable != null) {
-            throw new IllegalArgumentException("Cannot use placeholder or error drawables with remote views.");
+            throw new IllegalArgumentException("Cannot use placeholder or onError drawables with remote views.");
         }
 
         Request request = createRequest(started);
@@ -418,15 +427,6 @@ public class RequestCreator {
         into(target, null);
     }
 
-    /**
-     * Asynchronously fulfills the request into the specified {@link ImageView} and invokes the
-     * target {@link Callback} if it's not {@code null}.
-     * <p/>
-     * <em>Note:</em> The {@link Callback} param is a strong reference and will prevent your
-     * {@link android.app.Activity} or {@link android.app.Fragment} from being garbage collected. If
-     * you use this method, it is <b>strongly</b> recommended you invoke an adjacent
-     * {@link EasyLoader#cancelRequest(android.widget.ImageView)} call to prevent temporary leaking.
-     */
     public void into(ImageView target, Callback callback) {
 
         ThreadChecker.checkMain();
@@ -492,9 +492,21 @@ public class RequestCreator {
         }
     }
 
+    private Request transformRequest(Request request) {
+        if (requestTransformer != null) {
+            Request transformed = requestTransformer.transformRequest(request);
+            if (transformed == null) {
+                throw new IllegalStateException("Request transformer " + requestTransformer.getClass()
+                                                                                           .getCanonicalName() + " returned null for " + request);
+            }
+            return transformed;
+        }
+        return request;
+    }
+
     private Request createRequest(long started) {
 
-        Request request = loader.transformRequest(builder.build());
+        Request request = transformRequest(builder.build());
         request.id = nextId.getAndIncrement();
         request.started = started;
 
@@ -505,7 +517,7 @@ public class RequestCreator {
         if (shouldReadFromMemoryCache(memoryPolicy)) {
             Bitmap bitmap = loader.quickMemoryCacheCheck(action.getKey());
             if (bitmap != null) {
-                action.complete(bitmap, LoadedFrom.MEMORY);
+                action.onComplete(bitmap, LoadedFrom.MEMORY);
                 return;
             }
         }

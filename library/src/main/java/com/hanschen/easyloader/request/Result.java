@@ -26,6 +26,7 @@ public class Result {
     }
 
     Result(Bitmap bitmap, InputStream stream, LoadedFrom loadedFrom, int exifOrientation) {
+        //bitmap或者stream必须一个为空，一个非空
         if (!(bitmap != null ^ stream != null)) {
             throw new AssertionError();
         }
