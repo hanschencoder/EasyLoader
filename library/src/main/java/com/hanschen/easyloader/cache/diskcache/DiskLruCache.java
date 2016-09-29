@@ -48,7 +48,7 @@ import java.util.concurrent.TimeUnit;
  *
  * <p>The cache stores its data in a directory on the filesystem. This
  * directory must be exclusive to the cache; the cache may delete or overwrite
- * files from its directory. It is an error for multiple processes to use the
+ * files from its directory. It is an onError for multiple processes to use the
  * same cache directory at the same time.
  *
  * <p>This cache limits the number of bytes that it will store on the
@@ -79,7 +79,7 @@ import java.util.concurrent.TimeUnit;
  *
  * <p>This class is tolerant of some I/O errors. If files are missing from the
  * filesystem, the corresponding entries will be dropped from the cache. If
- * an error occurs while writing a cache value, the edit will fail silently.
+ * an onError occurs while writing a cache value, the edit will fail silently.
  * Callers should handle other problems by catching {@code IOException} and
  * responding appropriately.
  */
@@ -782,7 +782,7 @@ public final class DiskLruCache implements Closeable {
          */
         public void commit() throws IOException {
             // The object using this Editor must catch and handle any errors
-            // during the write. If there is an error and they call commit
+            // during the write. If there is an onError and they call commit
             // anyway, we will assume whatever they managed to write was valid.
             // Normally they should call abort.
             completeEdit(this, true);

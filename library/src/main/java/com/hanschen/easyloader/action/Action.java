@@ -77,9 +77,9 @@ public abstract class Action<T> {
         this.tag = (tag != null ? tag : this);
     }
 
-    public abstract void complete(Bitmap result, LoadedFrom from);
+    public abstract void onComplete(Bitmap result, LoadedFrom from);
 
-    public abstract void error();
+    public abstract void onError();
 
     public void cancel() {
         cancelled = true;

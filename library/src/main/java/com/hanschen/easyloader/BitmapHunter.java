@@ -32,7 +32,6 @@ import com.hanschen.easyloader.util.Utils;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.List;
@@ -70,7 +69,6 @@ public class BitmapHunter implements Runnable {
     final EasyLoader                     loader;
     final Dispatcher                     dispatcher;
     final LruMemoryCache<String, Bitmap> cache;
-    final Stats                          stats;
     final String                         key;
     final Request                        data;
     final int                            memoryPolicy;
@@ -90,14 +88,12 @@ public class BitmapHunter implements Runnable {
     BitmapHunter(EasyLoader loader,
                  Dispatcher dispatcher,
                  LruMemoryCache<String, Bitmap> cache,
-                 Stats stats,
                  Action action,
                  RequestHandler requestHandler) {
         this.sequence = SEQUENCE_GENERATOR.incrementAndGet();
         this.loader = loader;
         this.dispatcher = dispatcher;
         this.cache = cache;
-        this.stats = stats;
         this.action = action;
         this.key = action.getKey();
         this.data = action.getRequest();
@@ -111,7 +107,6 @@ public class BitmapHunter implements Runnable {
     public static BitmapHunter forRequest(EasyLoader loader,
                                           Dispatcher dispatcher,
                                           LruMemoryCache<String, Bitmap> cache,
-                                          Stats stats,
                                           Action action) {
         Request request = action.getRequest();
         List<RequestHandler> requestHandlers = loader.getRequestHandlers();
@@ -119,7 +114,7 @@ public class BitmapHunter implements Runnable {
         for (int i = 0, count = requestHandlers.size(); i < count; i++) {
             RequestHandler handler = requestHandlers.get(i);
             if (handler.canHandleRequest(request)) {
-                return new BitmapHunter(loader, dispatcher, cache, stats, action, handler);
+                return new BitmapHunter(loader, dispatcher, cache, action, handler);
             }
         }
 
@@ -191,7 +186,6 @@ public class BitmapHunter implements Runnable {
             dispatcher.dispatchRetry(this);
         } catch (OutOfMemoryError e) {
             StringWriter writer = new StringWriter();
-            stats.createSnapshot().dump(new PrintWriter(writer));
             exception = new RuntimeException(writer.toString(), e);
             dispatcher.dispatchFailed(this);
         } catch (Exception e) {
@@ -215,7 +209,6 @@ public class BitmapHunter implements Runnable {
         if (shouldReadFromMemoryCache(memoryPolicy)) {
             bitmap = cache.get(key);
             if (bitmap != null) {
-                stats.dispatchCacheHit();
                 loadedFrom = LoadedFrom.MEMORY;
                 return bitmap;
             }
@@ -240,7 +233,6 @@ public class BitmapHunter implements Runnable {
         }
 
         if (bitmap != null) {
-            stats.dispatchBitmapDecoded(bitmap);
             if (data.needsTransformation() || exifOrientation != 0) {
                 synchronized (DECODE_LOCK) {
                     if (data.needsMatrixTransform() || exifOrientation != 0) {
@@ -249,9 +241,6 @@ public class BitmapHunter implements Runnable {
                     if (data.hasCustomTransformations()) {
                         bitmap = applyCustomTransformations(data.transformations, bitmap);
                     }
-                }
-                if (bitmap != null) {
-                    stats.dispatchBitmapTransformed(bitmap);
                 }
             }
         }
@@ -269,7 +258,7 @@ public class BitmapHunter implements Runnable {
         }
 
         if (actions == null) {
-            actions = new ArrayList<Action>(3);
+            actions = new ArrayList<>(3);
         }
 
         actions.add(action);
@@ -411,12 +400,11 @@ public class BitmapHunter implements Runnable {
             }
 
             if (newResult == null) {
-                final StringBuilder builder = new StringBuilder() //
-                                                                  .append("Transformation ")
-                                                                  .append(transformation.key())
-                                                                  .append(" returned null after ")
-                                                                  .append(i)
-                                                                  .append(" previous transformation(s).\n\nTransformation list:\n");
+                final StringBuilder builder = new StringBuilder().append("Transformation ")
+                                                                 .append(transformation.key())
+                                                                 .append(" returned null after ")
+                                                                 .append(i)
+                                                                 .append(" previous transformation(s).\n\nTransformation list:\n");
                 for (Transformation t : transformations) {
                     builder.append(t.key()).append('\n');
                 }

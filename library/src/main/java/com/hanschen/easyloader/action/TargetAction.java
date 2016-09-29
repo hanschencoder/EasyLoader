@@ -38,9 +38,9 @@ public final class TargetAction extends Action<Target> {
     }
 
     @Override
-    public void complete(Bitmap result, LoadedFrom from) {
+    public void onComplete(Bitmap result, LoadedFrom from) {
         if (result == null) {
-            throw new AssertionError(String.format("Attempted to complete action with no result!\n%s", this));
+            throw new AssertionError(String.format("Attempted to onComplete action with no result!\n%s", this));
         }
         Target target = getTarget();
         if (target != null) {
@@ -52,7 +52,7 @@ public final class TargetAction extends Action<Target> {
     }
 
     @Override
-    public void error() {
+    public void onError() {
         Target target = getTarget();
         if (target != null) {
             if (errorResId != 0) {

@@ -40,14 +40,14 @@ public class FetchAction extends Action<Object> {
     }
 
     @Override
-    public void complete(Bitmap result, LoadedFrom from) {
+    public void onComplete(Bitmap result, LoadedFrom from) {
         if (callback != null) {
             callback.onSuccess();
         }
     }
 
     @Override
-    public void error() {
+    public void onError() {
         if (callback != null) {
             callback.onError();
         }
