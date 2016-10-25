@@ -29,8 +29,7 @@ import android.os.Looper;
 import android.os.Message;
 
 import com.hanschen.easyloader.action.Action;
-import com.hanschen.easyloader.cache.LruMemoryCache;
-import com.hanschen.easyloader.downloader.Downloader;
+import com.hanschen.easyloader.cache.CacheManager;
 import com.hanschen.easyloader.util.Utils;
 
 import java.util.ArrayList;
@@ -47,6 +46,7 @@ import static android.content.Context.CONNECTIVITY_SERVICE;
 import static android.content.Intent.ACTION_AIRPLANE_MODE_CHANGED;
 import static android.net.ConnectivityManager.CONNECTIVITY_ACTION;
 import static android.os.Process.THREAD_PRIORITY_BACKGROUND;
+import static com.hanschen.easyloader.DiskPolicy.shouldWriteToDiskCache;
 import static com.hanschen.easyloader.MemoryPolicy.shouldWriteToMemoryCache;
 
 public class Dispatcher {
@@ -72,35 +72,37 @@ public class Dispatcher {
     private static final String DISPATCHER_THREAD_NAME = "Dispatcher";
     private static final int    BATCH_DELAY            = 200; // ms
 
-    final DispatcherThread               dispatcherThread;
-    final Context                        context;
-    final ExecutorService                service;
+    final DispatcherThread             dispatcherThread;
+    final Context                      context;
+    final ExecutorService              service;
     /**
      * 已加入请求列表的任务，任务取消、完成或者失败后会移除
      */
-    final Map<String, BitmapHunter>      hunterMap;
+    final Map<String, BitmapHunter>    hunterMap;
     /**
      * 需重新进行请求任务列表，在重新联网的时候，会把当前列表的任务重新进行请求
      */
-    final Map<Object, Action>            failedActions;
+    final Map<Object, Action>          failedActions;
     /**
      * 暂停请求的任务列表
      */
-    final Map<Object, Action>            pausedActions;
-    final Set<Object>                    pausedTags;
-    final Handler                        handler;
-    final Handler                        mainThreadHandler;
-    final LruMemoryCache<String, Bitmap> cache;
-    final List<BitmapHunter>             batch;
-    final NetworkBroadcastReceiver       receiver;
-    final boolean                        scansNetworkChanges;
+    final Map<Object, Action>          pausedActions;
+    final Set<Object>                  pausedTags;
+    final Handler                      handler;
+    final Handler                      mainThreadHandler;
+    final CacheManager<String, Bitmap> memoryCache;
+    final CacheManager<String, Bitmap> diskCache;
+    final List<BitmapHunter>           batch;
+    final NetworkBroadcastReceiver     receiver;
+    final boolean                      scansNetworkChanges;
 
     boolean airplaneMode;
 
     Dispatcher(Context context,
                ExecutorService service,
                Handler mainThreadHandler,
-               LruMemoryCache<String, Bitmap> cache) {
+               CacheManager<String, Bitmap> memoryCache,
+               CacheManager<String, Bitmap> diskCache) {
         this.dispatcherThread = new DispatcherThread();
         this.dispatcherThread.start();
         Utils.flushStackLocalLeaks(dispatcherThread.getLooper());
@@ -113,7 +115,8 @@ public class Dispatcher {
         this.pausedActions = new WeakHashMap<>();
         this.pausedTags = new HashSet<>();
         this.mainThreadHandler = mainThreadHandler;
-        this.cache = cache;
+        this.memoryCache = memoryCache;
+        this.diskCache = diskCache;
         this.batch = new ArrayList<>(4);
         this.airplaneMode = Utils.isAirplaneModeOn(this.context);
         this.scansNetworkChanges = Utils.hasPermission(context, Manifest.permission.ACCESS_NETWORK_STATE);
@@ -192,7 +195,7 @@ public class Dispatcher {
             return;
         }
 
-        hunter = BitmapHunter.forRequest(action.getLoader(), this, cache, action);
+        hunter = BitmapHunter.forRequest(action.getLoader(), this, memoryCache, diskCache, action);
         hunter.future = service.submit(hunter);
         hunterMap.put(action.getKey(), hunter);
         if (dismissFailed) {
@@ -309,7 +312,7 @@ public class Dispatcher {
             if (!scansNetworkChanges || hasConnectivity) {
                 //noinspection ThrowableResultOfMethodCallIgnored
 //            if (hunter.getException() instanceof NetworkRequestHandler.ContentLengthException) {
-//                hunter.networkPolicy |= NetworkPolicy.NO_CACHE.index;
+//                hunter.diskPolicy |= DiskPolicy.NO_CACHE.index;
 //            }
                 hunter.future = service.submit(hunter);
                 return;
@@ -333,7 +336,10 @@ public class Dispatcher {
 
     void performComplete(BitmapHunter hunter) {
         if (shouldWriteToMemoryCache(hunter.getMemoryPolicy())) {
-            cache.put(hunter.getKey(), hunter.getResult());
+            memoryCache.put(hunter.getKey(), hunter.getResult());
+        }
+        if (shouldWriteToDiskCache(hunter.getDiskPolicy())) {
+            diskCache.put(hunter.getKey(), hunter.getResult());
         }
         hunterMap.remove(hunter.getKey());
         batch(hunter);

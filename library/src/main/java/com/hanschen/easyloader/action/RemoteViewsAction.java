@@ -40,10 +40,10 @@ public abstract class RemoteViewsAction extends Action<RemoteViewsAction.RemoteV
                              int viewId,
                              int errorResId,
                              int memoryPolicy,
-                             int networkPolicy,
+                             int diskPolicy,
                              Object tag,
                              String key) {
-        super(picasso, null, data, memoryPolicy, networkPolicy, errorResId, null, key, tag, false);
+        super(picasso, null, data, memoryPolicy, diskPolicy, errorResId, null, key, tag, false);
         this.remoteViews = remoteViews;
         this.viewId = viewId;
     }
@@ -110,17 +110,17 @@ public abstract class RemoteViewsAction extends Action<RemoteViewsAction.RemoteV
                                int viewId,
                                int[] appWidgetIds,
                                int memoryPolicy,
-                               int networkPolicy,
+                               int diskPolicy,
                                String key,
                                Object tag,
                                int errorResId) {
-            super(picasso, data, remoteViews, viewId, errorResId, memoryPolicy, networkPolicy, tag, key);
+            super(picasso, data, remoteViews, viewId, errorResId, memoryPolicy, diskPolicy, tag, key);
             this.appWidgetIds = appWidgetIds;
         }
 
         @Override
         void update() {
-            AppWidgetManager manager = AppWidgetManager.getInstance(loader.context);
+            AppWidgetManager manager = AppWidgetManager.getInstance(loader.getContext());
             manager.updateAppWidget(appWidgetIds, remoteViews);
         }
     }
@@ -138,11 +138,11 @@ public abstract class RemoteViewsAction extends Action<RemoteViewsAction.RemoteV
                                   Notification notification,
                                   String notificationTag,
                                   int memoryPolicy,
-                                  int networkPolicy,
+                                  int diskPolicy,
                                   String key,
                                   Object tag,
                                   int errorResId) {
-            super(picasso, data, remoteViews, viewId, errorResId, memoryPolicy, networkPolicy, tag, key);
+            super(picasso, data, remoteViews, viewId, errorResId, memoryPolicy, diskPolicy, tag, key);
             this.notificationId = notificationId;
             this.notificationTag = notificationTag;
             this.notification = notification;
@@ -150,7 +150,7 @@ public abstract class RemoteViewsAction extends Action<RemoteViewsAction.RemoteV
 
         @Override
         void update() {
-            NotificationManager manager = Utils.getService(loader.context, NOTIFICATION_SERVICE);
+            NotificationManager manager = Utils.getService(loader.getContext(), NOTIFICATION_SERVICE);
             manager.notify(notificationTag, notificationId, notification);
         }
     }

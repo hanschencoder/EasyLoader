@@ -21,7 +21,7 @@ import android.graphics.Matrix;
 import android.net.NetworkInfo;
 
 import com.hanschen.easyloader.action.Action;
-import com.hanschen.easyloader.cache.LruMemoryCache;
+import com.hanschen.easyloader.cache.CacheManager;
 import com.hanschen.easyloader.downloader.ResponseException;
 import com.hanschen.easyloader.request.Request;
 import com.hanschen.easyloader.request.RequestHandler;
@@ -45,6 +45,7 @@ import static android.media.ExifInterface.ORIENTATION_ROTATE_270;
 import static android.media.ExifInterface.ORIENTATION_ROTATE_90;
 import static android.media.ExifInterface.ORIENTATION_TRANSPOSE;
 import static android.media.ExifInterface.ORIENTATION_TRANSVERSE;
+import static com.hanschen.easyloader.DiskPolicy.shouldReadFromDiskCache;
 import static com.hanschen.easyloader.MemoryPolicy.shouldReadFromMemoryCache;
 
 
@@ -65,15 +66,16 @@ public class BitmapHunter implements Runnable {
 
     private static final AtomicInteger SEQUENCE_GENERATOR = new AtomicInteger();
 
-    final int                            sequence;
-    final EasyLoader                     loader;
-    final Dispatcher                     dispatcher;
-    final LruMemoryCache<String, Bitmap> cache;
-    final String                         key;
-    final Request                        data;
-    final int                            memoryPolicy;
-    int networkPolicy;
-    final RequestHandler requestHandler;
+    final int                          sequence;
+    final EasyLoader                   loader;
+    final Dispatcher                   dispatcher;
+    final CacheManager<String, Bitmap> memoryCache;
+    final CacheManager<String, Bitmap> diskCache;
+    final String                       key;
+    final Request                      data;
+    final int                          memoryPolicy;
+    final int                          diskPolicy;
+    final RequestHandler               requestHandler;
 
     Action       action;
     List<Action> actions;
@@ -85,28 +87,31 @@ public class BitmapHunter implements Runnable {
     int          retryCount;
     Priority     priority;
 
-    BitmapHunter(EasyLoader loader,
-                 Dispatcher dispatcher,
-                 LruMemoryCache<String, Bitmap> cache,
-                 Action action,
-                 RequestHandler requestHandler) {
+    private BitmapHunter(EasyLoader loader,
+                         Dispatcher dispatcher,
+                         CacheManager<String, Bitmap> memoryCache,
+                         CacheManager<String, Bitmap> diskCache,
+                         Action action,
+                         RequestHandler requestHandler) {
         this.sequence = SEQUENCE_GENERATOR.incrementAndGet();
         this.loader = loader;
         this.dispatcher = dispatcher;
-        this.cache = cache;
+        this.memoryCache = memoryCache;
+        this.diskCache = diskCache;
         this.action = action;
         this.key = action.getKey();
         this.data = action.getRequest();
         this.priority = action.getPriority();
         this.memoryPolicy = action.getMemoryPolicy();
-        this.networkPolicy = action.getNetworkPolicy();
+        this.diskPolicy = action.getDiskPolicy();
         this.requestHandler = requestHandler;
         this.retryCount = requestHandler.getRetryCount();
     }
 
     public static BitmapHunter forRequest(EasyLoader loader,
                                           Dispatcher dispatcher,
-                                          LruMemoryCache<String, Bitmap> cache,
+                                          CacheManager<String, Bitmap> memoryCache,
+                                          CacheManager<String, Bitmap> diskCache,
                                           Action action) {
         Request request = action.getRequest();
         List<RequestHandler> requestHandlers = loader.getRequestHandlers();
@@ -114,7 +119,7 @@ public class BitmapHunter implements Runnable {
         for (int i = 0, count = requestHandlers.size(); i < count; i++) {
             RequestHandler handler = requestHandlers.get(i);
             if (handler.canHandleRequest(request)) {
-                return new BitmapHunter(loader, dispatcher, cache, action, handler);
+                return new BitmapHunter(loader, dispatcher, memoryCache, diskCache, action, handler);
             }
         }
 
@@ -126,7 +131,7 @@ public class BitmapHunter implements Runnable {
      * about the supplied request in order to do the decoding efficiently (such as through leveraging
      * {@code inSampleSize}).
      */
-    static Bitmap decodeStream(InputStream stream, Request request) throws IOException {
+    private Bitmap decodeStream(InputStream stream, Request request) throws IOException {
         MarkableInputStream markStream = new MarkableInputStream(stream);
         stream = markStream;
         markStream.allowMarksToExpire(false);
@@ -207,19 +212,26 @@ public class BitmapHunter implements Runnable {
         Bitmap bitmap = null;
 
         if (shouldReadFromMemoryCache(memoryPolicy)) {
-            bitmap = cache.get(key);
+            bitmap = memoryCache.get(key);
             if (bitmap != null) {
                 loadedFrom = LoadedFrom.MEMORY;
                 return bitmap;
             }
         }
 
-        data.networkPolicy = retryCount == 0 ? NetworkPolicy.OFFLINE.index : networkPolicy;
+        if (shouldReadFromDiskCache(diskPolicy)) {
+            bitmap = diskCache.get(key);
+            if (bitmap != null) {
+                loadedFrom = LoadedFrom.DISK;
+                return bitmap;
+            }
+        }
+
         Result result = requestHandler.handle(data);
         if (result != null) {
+
             loadedFrom = result.getLoadedFrom();
             exifOrientation = result.getExifOrientation();
-
             bitmap = result.getBitmap();
             // 图片可能保存在InputStream而不是bitmap，比如NetworkRequestHandler
             if (bitmap == null) {
@@ -249,9 +261,6 @@ public class BitmapHunter implements Runnable {
     }
 
     void attach(Action action) {
-        boolean loggingEnabled = loader.loggingEnabled;
-        Request request = action.request;
-
         if (this.action == null) {
             this.action = action;
             return;
@@ -343,6 +352,10 @@ public class BitmapHunter implements Runnable {
 
     int getMemoryPolicy() {
         return memoryPolicy;
+    }
+
+    int getDiskPolicy() {
+        return diskPolicy;
     }
 
     Request getData() {

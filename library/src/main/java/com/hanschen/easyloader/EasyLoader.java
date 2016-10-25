@@ -1,5 +1,6 @@
 package com.hanschen.easyloader;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.net.Uri;
@@ -8,6 +9,7 @@ import android.os.Looper;
 import android.os.Message;
 import android.os.Process;
 import android.support.annotation.NonNull;
+import android.support.annotation.VisibleForTesting;
 import android.widget.ImageView;
 
 import com.hanschen.easyloader.action.Action;
@@ -41,27 +43,30 @@ import static com.hanschen.easyloader.util.ThreadChecker.checkMain;
 /**
  * Created by Hans.Chen on 2016/7/27.
  */
-public class EasyLoader {
+public class EasyLoader implements Provider {
 
+    @SuppressLint("StaticFieldLeak")
     private volatile static EasyLoader                             singleton;
-    public                  Context                                context;
-    final                   ReferenceQueue<Object>                 referenceQueue;
-    volatile                boolean                                loggingEnabled;
+    private final           Context                                context;
+    private final           ReferenceQueue<Object>                 referenceQueue;
+    private volatile        boolean                                loggingEnabled;
     private final           Dispatcher                             dispatcher;
     private final           List<RequestHandler>                   requestHandlers;
-    public final            LruMemoryCache<String, Bitmap>         cache;
-    public final            Bitmap.Config                          defaultBitmapConfig;
+    private final           CacheManager<String, Bitmap>           memoryCache;
+    private final           CacheManager<String, Bitmap>           diskCache;
+    private final           Bitmap.Config                          defaultBitmapConfig;
     private final           RequestTransformer                     requestTransformer;
     private final           OnLoadListener                         listener;
     private final           CleanupThread                          cleanupThread;
     private final           Map<Object, Action>                    targetToAction;
-    final                   Map<ImageView, DeferredRequestCreator> targetToDeferredRequestCreator;
-    public                  boolean                                shutdown;
-    public                  boolean                                indicatorsEnabled;
+    private final           Map<ImageView, DeferredRequestCreator> targetToDeferredRequestCreator;
+    private                 boolean                                shutdown;
+    private                 boolean                                indicatorsEnabled;
 
     private EasyLoader(Context context,
-                       Dispatcher dispatcher,
-                       LruMemoryCache<String, Bitmap> cache,
+                       ExecutorService service,
+                       CacheManager<String, Bitmap> memoryCache,
+                       CacheManager<String, Bitmap> diskCache,
                        OnLoadListener listener,
                        List<RequestHandler> extraRequestHandlers,
                        Bitmap.Config defaultBitmapConfig,
@@ -71,34 +76,31 @@ public class EasyLoader {
                        boolean loggingEnabled) {
 
         this.context = context.getApplicationContext();
-        this.dispatcher = dispatcher;
-        this.cache = cache;
+        this.memoryCache = memoryCache;
+        this.diskCache = diskCache;
         this.listener = listener;
-        this.requestTransformer = requestTransformer;
         this.defaultBitmapConfig = defaultBitmapConfig;
+        this.requestTransformer = requestTransformer;
+        this.indicatorsEnabled = indicatorsEnabled;
+        this.loggingEnabled = loggingEnabled;
 
-        int builtInHandlers = 7; // Adjust this as internal handlers are added or removed.
-        int extraCount = (extraRequestHandlers != null ? extraRequestHandlers.size() : 0);
-        List<RequestHandler> allRequestHandlers = new ArrayList<>(builtInHandlers + extraCount);
-
-        // ResourceRequestHandler needs to be the first in the list to avoid
-        // forcing other RequestHandlers to perform null checks on request.uri
-        // to cover the (request.resourceId != 0) case.
+        //初始化requestHandlers
+        List<RequestHandler> allRequestHandlers = new ArrayList<>();
+        allRequestHandlers.add(new NetworkRequestHandler(downloader));
         if (extraRequestHandlers != null) {
             allRequestHandlers.addAll(extraRequestHandlers);
         }
-        allRequestHandlers.add(new NetworkRequestHandler(downloader));
         requestHandlers = Collections.unmodifiableList(allRequestHandlers);
 
+        this.dispatcher = new Dispatcher(context, service, HANDLER, memoryCache, diskCache);
         this.targetToAction = new WeakHashMap<>();
         this.targetToDeferredRequestCreator = new WeakHashMap<>();
-        this.indicatorsEnabled = indicatorsEnabled;
-        this.loggingEnabled = loggingEnabled;
         this.referenceQueue = new ReferenceQueue<>();
         this.cleanupThread = new CleanupThread(referenceQueue, HANDLER);
         this.cleanupThread.start();
     }
 
+    @VisibleForTesting
     public void shutdown() {
         if (this == singleton) {
             throw new UnsupportedOperationException("Default singleton instance cannot be shutdown.");
@@ -106,7 +108,7 @@ public class EasyLoader {
         if (shutdown) {
             return;
         }
-        cache.clear();
+        memoryCache.clear();
         cleanupThread.shutdown();
         dispatcher.shutdown();
         for (DeferredRequestCreator deferredRequestCreator : targetToDeferredRequestCreator.values()) {
@@ -118,14 +120,6 @@ public class EasyLoader {
 
     public boolean isLoggingEnabled() {
         return loggingEnabled;
-    }
-
-    public ReferenceQueue<Object> getReferenceQueue() {
-        return referenceQueue;
-    }
-
-    public List<RequestHandler> getRequestHandlers() {
-        return requestHandlers;
     }
 
     static final Handler HANDLER = new Handler(Looper.getMainLooper()) {
@@ -246,7 +240,7 @@ public class EasyLoader {
     }
 
     public Bitmap quickMemoryCacheCheck(String key) {
-        return cache.get(key);
+        return memoryCache.get(key);
     }
 
 
@@ -346,15 +340,51 @@ public class EasyLoader {
 
     }
 
+    public RequestCreator load(Uri uri) {
+        return new RequestCreator(EasyLoader.this, uri, 0, requestTransformer, dispatcher);
+    }
+
+    @Override
     public Context getContext() {
         return context;
     }
 
-    public RequestCreator load(Uri uri) {
-        return new RequestCreator(this, uri, 0, requestTransformer, dispatcher);
+    @Override
+    public ReferenceQueue<Object> getReferenceQueue() {
+        return referenceQueue;
     }
 
-    static class Builder {
+    @Override
+    public List<RequestHandler> getRequestHandlers() {
+        return requestHandlers;
+    }
+
+    @Override
+    public CacheManager<String, Bitmap> getMemoryCacheManager() {
+        return memoryCache;
+    }
+
+    @Override
+    public CacheManager<String, Bitmap> getDiskCacheManager() {
+        return diskCache;
+    }
+
+    @Override
+    public Bitmap.Config getDefaultBitmapConfig() {
+        return defaultBitmapConfig;
+    }
+
+    @Override
+    public boolean isShutdown() {
+        return shutdown;
+    }
+
+    @Override
+    public boolean isIndicatorsEnabled() {
+        return indicatorsEnabled;
+    }
+
+    private static class Builder {
 
         private static final long DEFAULT_DISK_CACHE_SIZE   = 100 * 1024 * 1024;
         private static final long DEFAULT_MEMORY_CACHE_SIZE = 250 * 1024 * 1024;
@@ -376,7 +406,7 @@ public class EasyLoader {
         private long maxMemoryCacheSize = DEFAULT_MEMORY_CACHE_SIZE;
         private long maxDiskCacheSize   = DEFAULT_DISK_CACHE_SIZE;
 
-        public Builder(Context context) {
+        private Builder(Context context) {
             if (context == null) {
                 throw new IllegalArgumentException("Context can not be null");
             }
@@ -420,7 +450,7 @@ public class EasyLoader {
             }
 
 
-            EasyLoader loader = new EasyLoader(null, null, null, null, null, null, null, null, true, true);
+            EasyLoader loader = new EasyLoader(null, null, null, null, null, null, null, null, null, true, true);
             loader.apply(Builder.this);
             return loader;
         }

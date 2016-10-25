@@ -46,7 +46,7 @@ public abstract class Action<T> {
     final        WeakReference<T> target;
     final        boolean          noFade;
     final        int              memoryPolicy;
-    final        int              networkPolicy;
+    final        int              diskPolicy;
     final        int              errorResId;
     final        Drawable         errorDrawable;
     final        String           key;
@@ -59,7 +59,7 @@ public abstract class Action<T> {
            T target,
            Request request,
            int memoryPolicy,
-           int networkPolicy,
+           int diskPolicy,
            int errorResId,
            Drawable errorDrawable,
            String key,
@@ -69,7 +69,7 @@ public abstract class Action<T> {
         this.request = request;
         this.target = target == null ? null : new RequestWeakReference<>(this, target, loader.getReferenceQueue());
         this.memoryPolicy = memoryPolicy;
-        this.networkPolicy = networkPolicy;
+        this.diskPolicy = diskPolicy;
         this.noFade = noFade;
         this.errorResId = errorResId;
         this.errorDrawable = errorDrawable;
@@ -114,8 +114,8 @@ public abstract class Action<T> {
         return memoryPolicy;
     }
 
-    public int getNetworkPolicy() {
-        return networkPolicy;
+    public int getDiskPolicy() {
+        return diskPolicy;
     }
 
     public EasyLoader getLoader() {

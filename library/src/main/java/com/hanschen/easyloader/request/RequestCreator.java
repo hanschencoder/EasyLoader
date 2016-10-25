@@ -11,11 +11,11 @@ import android.widget.RemoteViews;
 import com.hanschen.easyloader.BitmapHunter;
 import com.hanschen.easyloader.Callback;
 import com.hanschen.easyloader.DeferredRequestCreator;
+import com.hanschen.easyloader.DiskPolicy;
 import com.hanschen.easyloader.Dispatcher;
 import com.hanschen.easyloader.EasyLoader;
 import com.hanschen.easyloader.LoadedFrom;
 import com.hanschen.easyloader.MemoryPolicy;
-import com.hanschen.easyloader.NetworkPolicy;
 import com.hanschen.easyloader.PicassoDrawable;
 import com.hanschen.easyloader.Priority;
 import com.hanschen.easyloader.Target;
@@ -53,7 +53,7 @@ public class RequestCreator {
     private int      placeholderResId;
     private int      errorResId;
     private int      memoryPolicy;
-    private int      networkPolicy;
+    private int      diskPolicy;
     private Drawable placeholderDrawable;
     private Drawable errorDrawable;
     private Object   tag;
@@ -63,13 +63,13 @@ public class RequestCreator {
                           int resourceId,
                           RequestTransformer requestTransformer,
                           Dispatcher dispatcher) {
-        if (loader.shutdown) {
+        if (loader.isShutdown()) {
             throw new IllegalStateException("EasyLoader instance already shut down. Cannot submit new requests.");
         }
         this.requestTransformer = requestTransformer;
         this.loader = loader;
         this.dispatcher = dispatcher;
-        this.builder = new Request.Builder(uri, resourceId, loader.defaultBitmapConfig);
+        this.builder = new Request.Builder(uri, resourceId, loader.getDefaultBitmapConfig());
     }
 
     public RequestCreator noPlaceholder() {
@@ -244,19 +244,19 @@ public class RequestCreator {
         return this;
     }
 
-    public RequestCreator networkPolicy(NetworkPolicy policy, NetworkPolicy... additional) {
+    public RequestCreator diskPolicy(DiskPolicy policy, DiskPolicy... additional) {
         if (policy == null) {
             throw new IllegalArgumentException("Network policy cannot be null.");
         }
-        this.networkPolicy |= policy.index;
+        this.diskPolicy |= policy.index;
         if (additional == null) {
             throw new IllegalArgumentException("Network policy cannot be null.");
         }
-        for (NetworkPolicy networkPolicy : additional) {
-            if (networkPolicy == null) {
+        for (DiskPolicy diskPolicy : additional) {
+            if (diskPolicy == null) {
                 throw new IllegalArgumentException("Network policy cannot be null.");
             }
-            this.networkPolicy |= networkPolicy.index;
+            this.diskPolicy |= diskPolicy.index;
         }
         return this;
     }
@@ -290,8 +290,9 @@ public class RequestCreator {
         Request finalRequest = createRequest(started);
         String key = Utils.createKey(finalRequest, new StringBuilder());
 
-        Action action = new GetAction(loader, finalRequest, memoryPolicy, networkPolicy, tag, key);
-        return BitmapHunter.forRequest(loader, dispatcher, loader.cache, action).hunt();
+        Action action = new GetAction(loader, finalRequest, memoryPolicy, diskPolicy, tag, key);
+        return BitmapHunter.forRequest(loader, dispatcher, loader.getMemoryCacheManager(), loader.getDiskCacheManager(), action)
+                           .hunt();
     }
 
     /**
@@ -318,7 +319,7 @@ public class RequestCreator {
             Request finalRequest = createRequest(started);
             String key = Utils.createKey(finalRequest, new StringBuilder());
 
-            Action action = new FetchAction(loader, finalRequest, memoryPolicy, networkPolicy, tag, key, callback);
+            Action action = new FetchAction(loader, finalRequest, memoryPolicy, diskPolicy, tag, key, callback);
             loader.submit(action);
         }
     }
@@ -357,7 +358,7 @@ public class RequestCreator {
 
         target.onPrepareLoad(setPlaceholder ? getPlaceholderDrawable() : null);
 
-        Action action = new TargetAction(loader, target, finalRequest, memoryPolicy, networkPolicy, errorDrawable, key, tag, errorResId);
+        Action action = new TargetAction(loader, target, finalRequest, memoryPolicy, diskPolicy, errorDrawable, key, tag, errorResId);
         loader.enqueueAndSubmit(action);
     }
 
@@ -387,7 +388,7 @@ public class RequestCreator {
         Request request = createRequest(started);
         String key = Utils.createKey(request, new StringBuilder());
 
-        RemoteViewsAction action = new RemoteViewsAction.NotificationAction(loader, request, remoteViews, viewId, notificationId, notification, notificationTag, memoryPolicy, networkPolicy, key, tag, errorResId);
+        RemoteViewsAction action = new RemoteViewsAction.NotificationAction(loader, request, remoteViews, viewId, notificationId, notification, notificationTag, memoryPolicy, diskPolicy, key, tag, errorResId);
 
         performRemoteViewInto(action);
     }
@@ -415,7 +416,7 @@ public class RequestCreator {
         Request request = createRequest(started);
         String key = Utils.createKey(request, new StringBuilder()); // Non-main thread needs own builder.
 
-        RemoteViewsAction action = new RemoteViewsAction.AppWidgetAction(loader, request, remoteViews, viewId, appWidgetIds, memoryPolicy, networkPolicy, key, tag, errorResId);
+        RemoteViewsAction action = new RemoteViewsAction.AppWidgetAction(loader, request, remoteViews, viewId, appWidgetIds, memoryPolicy, diskPolicy, key, tag, errorResId);
 
         performRemoteViewInto(action);
     }
@@ -467,7 +468,7 @@ public class RequestCreator {
             Bitmap bitmap = loader.quickMemoryCacheCheck(key);
             if (bitmap != null) {
                 loader.cancelRequest(target);
-                PicassoDrawable.setBitmap(target, loader.context, bitmap, LoadedFrom.MEMORY, noFade, loader.indicatorsEnabled);
+                PicassoDrawable.setBitmap(target, loader.getContext(), bitmap, LoadedFrom.MEMORY, noFade, loader.isIndicatorsEnabled());
                 if (callback != null) {
                     callback.onSuccess();
                 }
@@ -479,14 +480,14 @@ public class RequestCreator {
             PicassoDrawable.setPlaceholder(target, getPlaceholderDrawable());
         }
 
-        Action action = new ImageViewAction(loader, target, request, memoryPolicy, networkPolicy, errorResId, errorDrawable, key, tag, callback, noFade);
+        Action action = new ImageViewAction(loader, target, request, memoryPolicy, diskPolicy, errorResId, errorDrawable, key, tag, callback, noFade);
 
         loader.enqueueAndSubmit(action);
     }
 
     private Drawable getPlaceholderDrawable() {
         if (placeholderResId != 0) {
-            return loader.context.getResources().getDrawable(placeholderResId);
+            return loader.getContext().getResources().getDrawable(placeholderResId);
         } else {
             return placeholderDrawable;
         }

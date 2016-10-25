@@ -30,11 +30,11 @@ public class FetchAction extends Action<Object> {
     public FetchAction(EasyLoader picasso,
                        Request data,
                        int memoryPolicy,
-                       int networkPolicy,
+                       int diskPolicy,
                        Object tag,
                        String key,
                        Callback callback) {
-        super(picasso, null, data, memoryPolicy, networkPolicy, 0, null, key, tag, false);
+        super(picasso, null, data, memoryPolicy, diskPolicy, 0, null, key, tag, false);
         this.target = new Object();
         this.callback = callback;
     }

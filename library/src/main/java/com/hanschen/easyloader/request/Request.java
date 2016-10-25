@@ -3,7 +3,6 @@ package com.hanschen.easyloader.request;
 import android.graphics.Bitmap;
 import android.net.Uri;
 
-import com.hanschen.easyloader.NetworkPolicy;
 import com.hanschen.easyloader.Priority;
 import com.hanschen.easyloader.Transformation;
 
@@ -28,10 +27,6 @@ public class Request {
      * 第一次提交的时间(in nanos).
      */
     long started;
-    /**
-     * The {@link NetworkPolicy} to use for this request.
-     */
-    public int networkPolicy;
 
     /**
      * 图片uri

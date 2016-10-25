@@ -15,7 +15,6 @@
  */
 package com.hanschen.easyloader.action;
 
-import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.drawable.AnimationDrawable;
 import android.graphics.drawable.Drawable;
@@ -35,14 +34,14 @@ public class ImageViewAction extends Action<ImageView> {
                            ImageView imageView,
                            Request data,
                            int memoryPolicy,
-                           int networkPolicy,
+                           int diskPolicy,
                            int errorResId,
                            Drawable errorDrawable,
                            String key,
                            Object tag,
                            Callback callback,
                            boolean noFade) {
-        super(picasso, imageView, data, memoryPolicy, networkPolicy, errorResId, errorDrawable, key, tag, noFade);
+        super(picasso, imageView, data, memoryPolicy, diskPolicy, errorResId, errorDrawable, key, tag, noFade);
         this.callback = callback;
     }
 
@@ -57,9 +56,7 @@ public class ImageViewAction extends Action<ImageView> {
             return;
         }
 
-        Context context = loader.context;
-        boolean indicatorsEnabled = loader.indicatorsEnabled;
-        PicassoDrawable.setBitmap(target, context, result, from, noFade, indicatorsEnabled);
+        PicassoDrawable.setBitmap(target, loader.getContext(), result, from, noFade, loader.isIndicatorsEnabled());
 
         if (callback != null) {
             callback.onSuccess();

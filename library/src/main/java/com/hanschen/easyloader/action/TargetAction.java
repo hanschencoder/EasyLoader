@@ -29,12 +29,12 @@ public final class TargetAction extends Action<Target> {
                         Target target,
                         Request data,
                         int memoryPolicy,
-                        int networkPolicy,
+                        int diskPolicy,
                         Drawable errorDrawable,
                         String key,
                         Object tag,
                         int errorResId) {
-        super(picasso, target, data, memoryPolicy, networkPolicy, errorResId, errorDrawable, key, tag, false);
+        super(picasso, target, data, memoryPolicy, diskPolicy, errorResId, errorDrawable, key, tag, false);
     }
 
     @Override
@@ -56,7 +56,7 @@ public final class TargetAction extends Action<Target> {
         Target target = getTarget();
         if (target != null) {
             if (errorResId != 0) {
-                target.onBitmapFailed(loader.context.getResources().getDrawable(errorResId));
+                target.onBitmapFailed(loader.getContext().getResources().getDrawable(errorResId));
             } else {
                 target.onBitmapFailed(errorDrawable);
             }

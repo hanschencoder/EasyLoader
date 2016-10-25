@@ -16,10 +16,10 @@
 package com.hanschen.easyloader;
 
 /**
- * Designates the policy to use for network requests.
+ * Designates the policy to use when dealing with disk cache.
  */
 @SuppressWarnings("PointlessBitwiseExpression")
-public enum NetworkPolicy {
+public enum DiskPolicy {
 
     /**
      * 不从本地查找是否有缓存
@@ -29,28 +29,19 @@ public enum NetworkPolicy {
     /**
      * 不把请求结果缓存到本地
      */
-    NO_STORE(1 << 1),
+    NO_STORE(1 << 1);
 
-    /**
-     * 只从本地缓存读取，不使用网络
-     */
-    OFFLINE(1 << 2);
-
-    public static boolean shouldReadFromDiskCache(int networkPolicy) {
-        return (networkPolicy & NetworkPolicy.NO_CACHE.index) == 0;
+    public static boolean shouldReadFromDiskCache(int diskPolicy) {
+        return (diskPolicy & DiskPolicy.NO_CACHE.index) == 0;
     }
 
-    public static boolean shouldWriteToDiskCache(int networkPolicy) {
-        return (networkPolicy & NetworkPolicy.NO_STORE.index) == 0;
-    }
-
-    public static boolean isOfflineOnly(int networkPolicy) {
-        return (networkPolicy & NetworkPolicy.OFFLINE.index) != 0;
+    public static boolean shouldWriteToDiskCache(int diskPolicy) {
+        return (diskPolicy & DiskPolicy.NO_STORE.index) == 0;
     }
 
     public final int index;
 
-    NetworkPolicy(int index) {
+    DiskPolicy(int index) {
         this.index = index;
     }
 }
