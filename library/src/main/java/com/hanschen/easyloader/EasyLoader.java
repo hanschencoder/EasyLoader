@@ -46,22 +46,26 @@ import static com.hanschen.easyloader.util.ThreadChecker.checkMain;
 public class EasyLoader implements Provider {
 
     @SuppressLint("StaticFieldLeak")
-    private volatile static EasyLoader                             singleton;
-    private final           Context                                context;
-    private final           ReferenceQueue<Object>                 referenceQueue;
-    private volatile        boolean                                loggingEnabled;
-    private final           Dispatcher                             dispatcher;
-    private final           List<RequestHandler>                   requestHandlers;
-    private final           CacheManager<String, Bitmap>           memoryCache;
-    private final           CacheManager<String, Bitmap>           diskCache;
-    private final           Bitmap.Config                          defaultBitmapConfig;
-    private final           RequestTransformer                     requestTransformer;
-    private final           OnLoadListener                         listener;
-    private final           CleanupThread                          cleanupThread;
-    private final           Map<Object, Action>                    targetToAction;
-    private final           Map<ImageView, DeferredRequestCreator> targetToDeferredRequestCreator;
-    private                 boolean                                shutdown;
-    private                 boolean                                indicatorsEnabled;
+    private volatile static EasyLoader singleton;
+
+    private final    Context                                context;
+    /**
+     * 保存被gc的弱引用
+     */
+    private final    ReferenceQueue<Object>                 referenceQueue;
+    private volatile boolean                                loggingEnabled;
+    private final    Dispatcher                             dispatcher;
+    private final    List<RequestHandler>                   requestHandlers;
+    private final    CacheManager<String, Bitmap>           memoryCache;
+    private final    CacheManager<String, Bitmap>           diskCache;
+    private final    Bitmap.Config                          defaultBitmapConfig;
+    private final    RequestTransformer                     requestTransformer;
+    private final    OnLoadListener                         listener;
+    private final    CleanupThread                          cleanupThread;
+    private final    Map<Object, Action>                    targetToAction;
+    private final    Map<ImageView, DeferredRequestCreator> targetToDeferredRequestCreator;
+    private          boolean                                shutdown;
+    private          boolean                                indicatorsEnabled;
 
     private EasyLoader(Context context,
                        ExecutorService service,
@@ -102,9 +106,6 @@ public class EasyLoader implements Provider {
 
     @VisibleForTesting
     public void shutdown() {
-        if (this == singleton) {
-            throw new UnsupportedOperationException("Default singleton instance cannot be shutdown.");
-        }
         if (shutdown) {
             return;
         }
@@ -149,7 +150,7 @@ public class EasyLoader implements Provider {
                     }
                     break;
                 default:
-                    throw new AssertionError("Unknown handler message received: " + msg.what);
+                    throw new AssertionError("Unknown dispatcherHandler message received: " + msg.what);
             }
         }
     };
@@ -276,6 +277,9 @@ public class EasyLoader implements Provider {
         }
     }
 
+    /**
+     * 当Action中的target被GC掉之后，取消掉对应的Action
+     */
     private static class CleanupThread extends Thread {
         private final ReferenceQueue<Object> referenceQueue;
         private final Handler                handler;
@@ -292,19 +296,12 @@ public class EasyLoader implements Provider {
             Process.setThreadPriority(THREAD_PRIORITY_BACKGROUND);
             while (true) {
                 try {
-                    // Prior to Android 5.0, even when there is no local variable, the result from
-                    // remove() & obtainMessage() is kept as a stack local variable.
-                    // We're forcing this reference to be cleared and replaced by looping every second
-                    // when there is nothing to do.
-                    // This behavior has been tested and reproduced with heap dumps.
                     Action.RequestWeakReference<?> remove = (Action.RequestWeakReference<?>) referenceQueue.remove(1000);
-                    Message message = handler.obtainMessage();
                     if (remove != null) {
+                        Message message = handler.obtainMessage();
                         message.what = Dispatcher.REQUEST_GCED;
                         message.obj = remove.getAction();
                         handler.sendMessage(message);
-                    } else {
-                        message.recycle();
                     }
                 } catch (InterruptedException e) {
                     break;
@@ -433,13 +430,13 @@ public class EasyLoader implements Provider {
                     if (cacheDirectory.mkdirs() || (cacheDirectory.exists() && cacheDirectory.isDirectory())) {
                         diskCacheManager = new LruDiskCache<>(cacheDirectory, maxDiskCacheSize, AppUtils.getVersionCode(context), new LruDiskCache.FileConverter<Bitmap>() {
                             @Override
-                            public Bitmap fileToValue(File file) {
+                            public Bitmap readFrom(File file) {
                                 // TODO: 2016/8/16  
                                 return null;
                             }
 
                             @Override
-                            public boolean writeValue(Bitmap value, File to) {
+                            public boolean writeTo(Bitmap value, File to) {
                                 // TODO: 2016/8/16  
                                 return false;
                             }

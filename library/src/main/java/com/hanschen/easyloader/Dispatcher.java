@@ -72,31 +72,30 @@ public class Dispatcher {
     private static final String DISPATCHER_THREAD_NAME = "Dispatcher";
     private static final int    BATCH_DELAY            = 200; // ms
 
-    final DispatcherThread             dispatcherThread;
-    final Context                      context;
-    final ExecutorService              service;
+    private final DispatcherThread             dispatcherThread;
+    private final Context                      context;
+    private final ExecutorService              service;
     /**
      * 已加入请求列表的任务，任务取消、完成或者失败后会移除
      */
-    final Map<String, BitmapHunter>    hunterMap;
+    private final Map<String, BitmapHunter>    hunterMap;
     /**
      * 需重新进行请求任务列表，在重新联网的时候，会把当前列表的任务重新进行请求
      */
-    final Map<Object, Action>          failedActions;
+    private final Map<Object, Action>          failedActions;
     /**
      * 暂停请求的任务列表
      */
-    final Map<Object, Action>          pausedActions;
-    final Set<Object>                  pausedTags;
-    final Handler                      handler;
-    final Handler                      mainThreadHandler;
-    final CacheManager<String, Bitmap> memoryCache;
-    final CacheManager<String, Bitmap> diskCache;
-    final List<BitmapHunter>           batch;
-    final NetworkBroadcastReceiver     receiver;
-    final boolean                      scansNetworkChanges;
-
-    boolean airplaneMode;
+    private final Map<Object, Action>          pausedActions;
+    private final Set<Object>                  pausedTags;
+    private final Handler                      dispatcherHandler;
+    private final Handler                      mainThreadHandler;
+    private final CacheManager<String, Bitmap> memoryCache;
+    private final CacheManager<String, Bitmap> diskCache;
+    private final List<BitmapHunter>           batch;
+    private final NetworkBroadcastReceiver     receiver;
+    private final boolean                      scansNetworkChanges;
+    private       boolean                      airplaneMode;
 
     Dispatcher(Context context,
                ExecutorService service,
@@ -106,7 +105,7 @@ public class Dispatcher {
         this.dispatcherThread = new DispatcherThread();
         this.dispatcherThread.start();
         Utils.flushStackLocalLeaks(dispatcherThread.getLooper());
-        this.handler = new DispatcherHandler(dispatcherThread.getLooper(), this);
+        this.dispatcherHandler = new DispatcherHandler(dispatcherThread.getLooper(), this);
 
         this.context = context;
         this.service = service;
@@ -130,7 +129,6 @@ public class Dispatcher {
             service.shutdown();
         }
         dispatcherThread.quit();
-        // Unregister network broadcast receiver on the main thread.
         EasyLoader.HANDLER.post(new Runnable() {
             @Override
             public void run() {
@@ -140,39 +138,39 @@ public class Dispatcher {
     }
 
     void dispatchSubmit(Action action) {
-        handler.sendMessage(handler.obtainMessage(REQUEST_SUBMIT, action));
+        dispatcherHandler.sendMessage(dispatcherHandler.obtainMessage(REQUEST_SUBMIT, action));
     }
 
     void dispatchCancel(Action action) {
-        handler.sendMessage(handler.obtainMessage(REQUEST_CANCEL, action));
+        dispatcherHandler.sendMessage(dispatcherHandler.obtainMessage(REQUEST_CANCEL, action));
     }
 
     void dispatchPauseTag(Object tag) {
-        handler.sendMessage(handler.obtainMessage(TAG_PAUSE, tag));
+        dispatcherHandler.sendMessage(dispatcherHandler.obtainMessage(TAG_PAUSE, tag));
     }
 
     void dispatchResumeTag(Object tag) {
-        handler.sendMessage(handler.obtainMessage(TAG_RESUME, tag));
+        dispatcherHandler.sendMessage(dispatcherHandler.obtainMessage(TAG_RESUME, tag));
     }
 
     void dispatchComplete(BitmapHunter hunter) {
-        handler.sendMessage(handler.obtainMessage(HUNTER_COMPLETE, hunter));
+        dispatcherHandler.sendMessage(dispatcherHandler.obtainMessage(HUNTER_COMPLETE, hunter));
     }
 
     void dispatchRetry(BitmapHunter hunter) {
-        handler.sendMessageDelayed(handler.obtainMessage(HUNTER_RETRY, hunter), RETRY_DELAY);
+        dispatcherHandler.sendMessageDelayed(dispatcherHandler.obtainMessage(HUNTER_RETRY, hunter), RETRY_DELAY);
     }
 
     void dispatchFailed(BitmapHunter hunter) {
-        handler.sendMessage(handler.obtainMessage(HUNTER_DECODE_FAILED, hunter));
+        dispatcherHandler.sendMessage(dispatcherHandler.obtainMessage(HUNTER_DECODE_FAILED, hunter));
     }
 
     void dispatchNetworkStateChange(NetworkInfo info) {
-        handler.sendMessage(handler.obtainMessage(NETWORK_STATE_CHANGE, info));
+        dispatcherHandler.sendMessage(dispatcherHandler.obtainMessage(NETWORK_STATE_CHANGE, info));
     }
 
     void dispatchAirplaneModeChange(boolean airplaneMode) {
-        handler.sendMessage(handler.obtainMessage(AIRPLANE_MODE_CHANGE, airplaneMode ? AIRPLANE_MODE_ON : AIRPLANE_MODE_OFF, 0));
+        dispatcherHandler.sendMessage(dispatcherHandler.obtainMessage(AIRPLANE_MODE_CHANGE, airplaneMode ? AIRPLANE_MODE_ON : AIRPLANE_MODE_OFF, 0));
     }
 
     void performSubmit(Action action) {
@@ -409,8 +407,8 @@ public class Dispatcher {
             return;
         }
         batch.add(hunter);
-        if (!handler.hasMessages(HUNTER_DELAY_NEXT_BATCH)) {
-            handler.sendEmptyMessageDelayed(HUNTER_DELAY_NEXT_BATCH, BATCH_DELAY);
+        if (!dispatcherHandler.hasMessages(HUNTER_DELAY_NEXT_BATCH)) {
+            dispatcherHandler.sendEmptyMessageDelayed(HUNTER_DELAY_NEXT_BATCH, BATCH_DELAY);
         }
     }
 
@@ -418,7 +416,7 @@ public class Dispatcher {
 
         private final Dispatcher dispatcher;
 
-        public DispatcherHandler(Looper looper, Dispatcher dispatcher) {
+        DispatcherHandler(Looper looper, Dispatcher dispatcher) {
             super(looper);
             this.dispatcher = dispatcher;
         }
@@ -478,14 +476,14 @@ public class Dispatcher {
                     EasyLoader.HANDLER.post(new Runnable() {
                         @Override
                         public void run() {
-                            throw new AssertionError("Unknown handler message received: " + msg.what);
+                            throw new AssertionError("Unknown dispatcherHandler message received: " + msg.what);
                         }
                     });
             }
         }
     }
 
-    static class DispatcherThread extends HandlerThread {
+    private static class DispatcherThread extends HandlerThread {
         DispatcherThread() {
             super(Utils.THREAD_PREFIX + DISPATCHER_THREAD_NAME, THREAD_PRIORITY_BACKGROUND);
         }
@@ -515,15 +513,13 @@ public class Dispatcher {
 
         @Override
         public void onReceive(Context context, Intent intent) {
-            // On some versions of Android this may be called with a null Intent,
-            // also without extras (getExtras() == null), in such case we use defaults.
             if (intent == null) {
                 return;
             }
             final String action = intent.getAction();
             if (ACTION_AIRPLANE_MODE_CHANGED.equals(action)) {
                 if (!intent.hasExtra(EXTRA_AIRPLANE_STATE)) {
-                    return; // No airplane state, ignore it. Should we query Utils.isAirplaneModeOn?
+                    return;
                 }
                 dispatcher.dispatchAirplaneModeChange(intent.getBooleanExtra(EXTRA_AIRPLANE_STATE, false));
             } else if (CONNECTIVITY_ACTION.equals(action)) {

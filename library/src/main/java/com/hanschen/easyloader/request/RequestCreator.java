@@ -66,6 +66,9 @@ public class RequestCreator {
         if (loader.isShutdown()) {
             throw new IllegalStateException("EasyLoader instance already shut down. Cannot submit new requests.");
         }
+        if ((uri != null) == (resourceId != 0)) {
+            throw new IllegalArgumentException("uri and resourceId can not both be null or not null");
+        }
         this.requestTransformer = requestTransformer;
         this.loader = loader;
         this.dispatcher = dispatcher;
@@ -220,11 +223,6 @@ public class RequestCreator {
     public RequestCreator transform(List<? extends Transformation> transformations) {
         builder.transform(transformations);
         return this;
-    }
-
-    @Deprecated
-    public RequestCreator skipMemoryCache() {
-        return memoryPolicy(MemoryPolicy.NO_CACHE, MemoryPolicy.NO_STORE);
     }
 
     public RequestCreator memoryPolicy(MemoryPolicy policy, MemoryPolicy... additional) {

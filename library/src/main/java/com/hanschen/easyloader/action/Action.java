@@ -28,10 +28,10 @@ import java.lang.ref.WeakReference;
 
 public abstract class Action<T> {
 
-    public static class RequestWeakReference<M> extends WeakReference<M> {
+    public static class RequestWeakReference<T> extends WeakReference<T> {
         private final Action action;
 
-        public RequestWeakReference(Action action, M referent, ReferenceQueue<? super M> q) {
+        RequestWeakReference(T referent, ReferenceQueue<? super T> q, Action action) {
             super(referent, q);
             this.action = action;
         }
@@ -67,7 +67,7 @@ public abstract class Action<T> {
            boolean noFade) {
         this.loader = loader;
         this.request = request;
-        this.target = target == null ? null : new RequestWeakReference<>(this, target, loader.getReferenceQueue());
+        this.target = target == null ? null : new RequestWeakReference<>(target, loader.getReferenceQueue(), this);
         this.memoryPolicy = memoryPolicy;
         this.diskPolicy = diskPolicy;
         this.noFade = noFade;

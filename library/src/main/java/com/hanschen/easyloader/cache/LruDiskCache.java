@@ -24,9 +24,9 @@ public class LruDiskCache<V> implements CacheManager<String, V> {
 
     public interface FileConverter<V> {
 
-        V fileToValue(File file);
+        V readFrom(File file);
 
-        boolean writeValue(V value, File to);
+        boolean writeTo(V value, File to);
     }
 
     public LruDiskCache(File directory, long maxSize, int appVersion, FileConverter<V> converter) {
@@ -51,7 +51,7 @@ public class LruDiskCache<V> implements CacheManager<String, V> {
         try {
             final DiskLruCache.Value value = getDiskCache().get(key);
             if (value != null) {
-                return converter.fileToValue(value.getFile(0));
+                return converter.readFrom(value.getFile(0));
             }
         } catch (IOException e) {
             EasyLoaderLog.w(TAG, "Unable to get from disk cache");
@@ -76,7 +76,7 @@ public class LruDiskCache<V> implements CacheManager<String, V> {
                 }
                 try {
                     File file = editor.getFile(0);
-                    if (converter.writeValue(value, file)) {
+                    if (converter.writeTo(value, file)) {
                         editor.commit();
                     }
                 } finally {

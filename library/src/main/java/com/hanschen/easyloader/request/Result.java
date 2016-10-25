@@ -17,17 +17,17 @@ public class Result {
     private final InputStream stream;
     private final int         exifOrientation;
 
-    public Result(Bitmap bitmap, LoadedFrom loadedFrom) {
+    Result(Bitmap bitmap, LoadedFrom loadedFrom) {
         this(Utils.checkNotNull(bitmap, "bitmap == null"), null, loadedFrom, 0);
     }
 
-    public Result(InputStream stream, LoadedFrom loadedFrom) {
+    Result(InputStream stream, LoadedFrom loadedFrom) {
         this(null, Utils.checkNotNull(stream, "stream == null"), loadedFrom, 0);
     }
 
     Result(Bitmap bitmap, InputStream stream, LoadedFrom loadedFrom, int exifOrientation) {
         //bitmap或者stream必须一个为空，一个非空
-        if (!(bitmap != null ^ stream != null)) {
+        if ((bitmap != null) == (stream != null)) {
             throw new AssertionError();
         }
         this.bitmap = bitmap;
