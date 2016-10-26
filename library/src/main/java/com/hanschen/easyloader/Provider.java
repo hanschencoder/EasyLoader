@@ -27,6 +27,8 @@ public interface Provider {
 
     Bitmap.Config getDefaultBitmapConfig();
 
+    QueueProcessType getQueueProcessType();
+
     boolean isShutdown();
 
     boolean isIndicatorsEnabled();

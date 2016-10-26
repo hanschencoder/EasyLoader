@@ -20,7 +20,7 @@ import com.hanschen.easyloader.cache.LruMemoryCache;
 import com.hanschen.easyloader.cache.SizeCalculator;
 import com.hanschen.easyloader.callback.OnLoadListener;
 import com.hanschen.easyloader.downloader.Downloader;
-import com.hanschen.easyloader.downloader.Okhttp3Downloader;
+import com.hanschen.easyloader.downloader.OkHttp3Downloader;
 import com.hanschen.easyloader.log.EasyLoaderLog;
 import com.hanschen.easyloader.log.Logger;
 import com.hanschen.easyloader.request.NetworkRequestHandler;
@@ -65,6 +65,7 @@ public class EasyLoader implements Provider {
     private final CleanupThread                          cleanupThread;
     private final Map<Object, Action>                    targetToAction;
     private final Map<ImageView, DeferredRequestCreator> targetToDeferredRequestCreator;
+    private final QueueProcessType                       queueProcessType;
     private       boolean                                shutdown;
     private       boolean                                indicatorsEnabled;
 
@@ -77,6 +78,7 @@ public class EasyLoader implements Provider {
                        Bitmap.Config defaultBitmapConfig,
                        RequestTransformer requestTransformer,
                        Downloader downloader,
+                       QueueProcessType queueProcessType,
                        boolean indicatorsEnabled,
                        boolean loggingEnabled) {
 
@@ -87,6 +89,7 @@ public class EasyLoader implements Provider {
         this.listener = listener;
         this.defaultBitmapConfig = defaultBitmapConfig;
         this.requestTransformer = requestTransformer;
+        this.queueProcessType = queueProcessType;
         this.indicatorsEnabled = indicatorsEnabled;
 
         //初始化requestHandlers
@@ -376,6 +379,11 @@ public class EasyLoader implements Provider {
     }
 
     @Override
+    public QueueProcessType getQueueProcessType() {
+        return queueProcessType;
+    }
+
+    @Override
     public boolean isShutdown() {
         return shutdown;
     }
@@ -387,8 +395,8 @@ public class EasyLoader implements Provider {
 
     private static class Builder {
 
-        private static final long DEFAULT_DISK_CACHE_SIZE   = 100 * 1024 * 1024;
-        private static final long DEFAULT_MEMORY_CACHE_SIZE = 250 * 1024 * 1024;
+        private static final long DEFAULT_DISK_CACHE_SIZE   = 250 * 1024 * 1024;
+        private static final long DEFAULT_MEMORY_CACHE_SIZE = 60 * 1024 * 1024;
 
         private final Context                      context;
         private       AdjustableExecutorService    service;
@@ -401,11 +409,12 @@ public class EasyLoader implements Provider {
         private       RequestTransformer           transformer;
         private       Bitmap.Config                defaultBitmapConfig;
         private       Downloader                   downloader;
+        private       QueueProcessType             queueProcessType;
         private       List<RequestHandler>         requestHandlers;
         private       boolean                      indicatorsEnabled;
         private       boolean                      loggingEnabled;
-        private long maxMemoryCacheSize = DEFAULT_MEMORY_CACHE_SIZE;
-        private long maxDiskCacheSize   = DEFAULT_DISK_CACHE_SIZE;
+        private long maxMemoryCacheSize = DEFAULT_MEMORY_CACHE_SIZE;// TODO: 2016/10/26 根据设备型号计算 
+        private long maxDiskCacheSize   = DEFAULT_DISK_CACHE_SIZE;// TODO: 2016/10/26 根据存储状态自动计算
 
         private Builder(Context context) {
             if (context == null) {
@@ -417,7 +426,7 @@ public class EasyLoader implements Provider {
         public EasyLoader build() {
 
             if (service == null) {
-                service = new AdjustableExecutorService(context);
+                service = new AdjustableExecutorService();
             }
 
             if (memoryCacheManager == null) {
@@ -468,11 +477,14 @@ public class EasyLoader implements Provider {
             }
 
             if (downloader == null) {
-                downloader = new Okhttp3Downloader();
+                downloader = new OkHttp3Downloader();
             }
 
+            if (queueProcessType == null) {
+                queueProcessType = QueueProcessType.LIFO;
+            }
 
-            EasyLoader loader = new EasyLoader(context, service, memoryCacheManager, diskCacheManager, null, null, null, transformer, downloader, true, true);
+            EasyLoader loader = new EasyLoader(context, service, memoryCacheManager, diskCacheManager, null, null, null, transformer, downloader, queueProcessType, true, true);
             loader.apply(Builder.this);
             return loader;
         }

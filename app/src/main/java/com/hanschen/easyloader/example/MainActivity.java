@@ -26,7 +26,14 @@ public class MainActivity extends AppCompatActivity {
             "http://192.168.60.251/12.jpg",
             "http://192.168.60.251/13.jpg",
             "http://192.168.60.251/14.jpg",
-            "http://192.168.60.251/15.jpg",};
+            "http://192.168.60.251/15.jpg",
+            "http://192.168.60.251/16.jpg",
+            "http://192.168.60.251/17.jpg",
+            "http://192.168.60.251/18.jpg",
+            "http://192.168.60.251/19.jpg",
+            "http://192.168.60.251/20.jpg",
+            "http://192.168.60.251/21.jpg",
+            "http://192.168.60.251/22.jpg",};
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {

@@ -35,7 +35,12 @@ public class ImageAdapter extends RecyclerView.Adapter<ImageAdapter.ImageHolder>
     @Override
     public void onBindViewHolder(ImageHolder holder, int position) {
         Uri uri = Uri.parse(data.get(position));
-        EasyLoader.with(context).load(uri).into(holder.picture);
+        EasyLoader.with(context)
+                  .load(uri)
+//                  .memoryPolicy(MemoryPolicy.NO_CACHE, MemoryPolicy.NO_STORE)
+//                  .diskPolicy(DiskPolicy.NO_CACHE, DiskPolicy.NO_STORE)
+                  .placeholder(R.mipmap.ic_launcher)
+                  .into(holder.picture);
     }
 
     @Override

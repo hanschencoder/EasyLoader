@@ -23,6 +23,7 @@ import android.net.NetworkInfo;
 import com.hanschen.easyloader.action.Action;
 import com.hanschen.easyloader.cache.CacheManager;
 import com.hanschen.easyloader.downloader.ResponseException;
+import com.hanschen.easyloader.log.EasyLoaderLog;
 import com.hanschen.easyloader.request.Request;
 import com.hanschen.easyloader.request.RequestHandler;
 import com.hanschen.easyloader.request.Result;
@@ -261,6 +262,7 @@ public class BitmapHunter implements Runnable {
     }
 
     void attach(Action action) {
+        EasyLoaderLog.d("BitmapHunter", "attach: " + action.getRequest().toString());
         if (this.action == null) {
             this.action = action;
             return;
@@ -279,6 +281,7 @@ public class BitmapHunter implements Runnable {
     }
 
     void detach(Action action) {
+        EasyLoaderLog.d("BitmapHunter", "detach: " + action.getRequest().toString());
         boolean detached = false;
         if (this.action == action) {
             this.action = null;

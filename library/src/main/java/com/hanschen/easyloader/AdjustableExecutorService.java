@@ -15,13 +15,13 @@
  */
 package com.hanschen.easyloader;
 
-import android.content.Context;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.Build;
 import android.support.annotation.NonNull;
 import android.telephony.TelephonyManager;
 
+import com.hanschen.easyloader.log.EasyLoaderLog;
 import com.hanschen.easyloader.util.Utils;
 
 import java.util.concurrent.Future;
@@ -34,11 +34,8 @@ class AdjustableExecutorService extends ThreadPoolExecutor {
 
     private static final int DEFAULT_THREAD_COUNT = 3;
 
-    AdjustableExecutorService(Context context) {
+    AdjustableExecutorService() {
         super(DEFAULT_THREAD_COUNT, DEFAULT_THREAD_COUNT, 0, TimeUnit.MILLISECONDS, new PriorityBlockingQueue<Runnable>(), new Utils.PicassoThreadFactory());
-
-        ConnectivityManager connectivityManager = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
-        adjustThreadCount(connectivityManager.getActiveNetworkInfo());
     }
 
     void adjustThreadCount(NetworkInfo info) {
@@ -46,6 +43,7 @@ class AdjustableExecutorService extends ThreadPoolExecutor {
     }
 
     private void setThreadCount(int threadCount) {
+        EasyLoaderLog.d("ThreadPoolExecutor", "setThreadCount: " + threadCount);
         if (Build.VERSION.SDK_INT > 23) {
             setMaximumPoolSize(threadCount);
             setCorePoolSize(threadCount);
@@ -103,15 +101,27 @@ class AdjustableExecutorService extends ThreadPoolExecutor {
             this.hunter = hunter;
         }
 
+        /**
+         * 返回负数那么在队列里面的优先级比较高
+         *
+         * @param another 比较的对象
+         * @return
+         */
         @Override
         public int compareTo(PicassoFutureTask another) {
 
-            Priority p1 = hunter.getPriority();
-            Priority p2 = another.hunter.getPriority();
+            Priority own = hunter.getPriority();
+            Priority other = another.hunter.getPriority();
 
-            // High-priority requests are "lesser" so they are sorted to the front.
-            // Equal priorities are sorted by sequence number to provide FIFO ordering.
-            return (p1 == p2 ? hunter.sequence - another.hunter.sequence : p2.ordinal() - p1.ordinal());
+            if (own == other) {
+                if (hunter.getLoader().getQueueProcessType() == QueueProcessType.FIFO) {
+                    return hunter.sequence - another.hunter.sequence;
+                } else {
+                    return another.hunter.sequence - hunter.sequence;
+                }
+            } else {
+                return other.ordinal() - own.ordinal();
+            }
         }
     }
 }
