@@ -35,7 +35,7 @@ class AdjustableExecutorService extends ThreadPoolExecutor {
     private static final int DEFAULT_THREAD_COUNT = 3;
 
     AdjustableExecutorService() {
-        super(DEFAULT_THREAD_COUNT, DEFAULT_THREAD_COUNT, 0, TimeUnit.MILLISECONDS, new PriorityBlockingQueue<Runnable>(), new Utils.PicassoThreadFactory());
+        super(DEFAULT_THREAD_COUNT, DEFAULT_THREAD_COUNT, 0, TimeUnit.MILLISECONDS, new PriorityBlockingQueue<Runnable>(), new Utils.ThreadFactory());
     }
 
     void adjustThreadCount(NetworkInfo info) {
@@ -88,15 +88,15 @@ class AdjustableExecutorService extends ThreadPoolExecutor {
     @Override
     @NonNull
     public Future<?> submit(Runnable task) {
-        PicassoFutureTask futureTask = new PicassoFutureTask((BitmapHunter) task);
+        PriorityFutureTask futureTask = new PriorityFutureTask((BitmapHunter) task);
         execute(futureTask);
         return futureTask;
     }
 
-    private static final class PicassoFutureTask extends FutureTask<BitmapHunter> implements Comparable<PicassoFutureTask> {
+    private static final class PriorityFutureTask extends FutureTask<BitmapHunter> implements Comparable<PriorityFutureTask> {
         private final BitmapHunter hunter;
 
-        PicassoFutureTask(BitmapHunter hunter) {
+        PriorityFutureTask(BitmapHunter hunter) {
             super(hunter, null);
             this.hunter = hunter;
         }
@@ -108,7 +108,7 @@ class AdjustableExecutorService extends ThreadPoolExecutor {
          * @return
          */
         @Override
-        public int compareTo(PicassoFutureTask another) {
+        public int compareTo(PriorityFutureTask another) {
 
             Priority own = hunter.getPriority();
             Priority other = another.hunter.getPriority();

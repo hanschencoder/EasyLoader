@@ -31,7 +31,7 @@ import android.widget.ImageView;
 
 import static android.graphics.Color.WHITE;
 
-public final class PicassoDrawable extends BitmapDrawable {
+public final class EnhanceDrawable extends BitmapDrawable {
     // Only accessed from main thread.
     private static final Paint DEBUG_PAINT   = new Paint();
     private static final float FADE_DURATION = 200f; //ms
@@ -50,7 +50,7 @@ public final class PicassoDrawable extends BitmapDrawable {
         if (placeholder instanceof AnimationDrawable) {
             ((AnimationDrawable) placeholder).stop();
         }
-        PicassoDrawable drawable = new PicassoDrawable(context, bitmap, placeholder, loadedFrom, noFade, debugging);
+        EnhanceDrawable drawable = new EnhanceDrawable(context, bitmap, placeholder, loadedFrom, noFade, debugging);
         target.setImageDrawable(drawable);
     }
 
@@ -75,7 +75,7 @@ public final class PicassoDrawable extends BitmapDrawable {
     boolean animating;
     int alpha = 0xFF;
 
-    PicassoDrawable(Context context,
+    EnhanceDrawable(Context context,
                     Bitmap bitmap,
                     Drawable placeholder,
                     LoadedFrom loadedFrom,

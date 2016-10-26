@@ -25,7 +25,7 @@ import com.hanschen.easyloader.request.Request;
 
 public final class TargetAction extends Action<Target> {
 
-    public TargetAction(EasyLoader picasso,
+    public TargetAction(EasyLoader loader,
                         Target target,
                         Request data,
                         int memoryPolicy,
@@ -34,7 +34,7 @@ public final class TargetAction extends Action<Target> {
                         String key,
                         Object tag,
                         int errorResId) {
-        super(picasso, target, data, memoryPolicy, diskPolicy, errorResId, errorDrawable, key, tag, false);
+        super(loader, target, data, memoryPolicy, diskPolicy, errorResId, errorDrawable, key, tag, false);
     }
 
     @Override

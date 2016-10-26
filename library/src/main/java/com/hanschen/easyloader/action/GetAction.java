@@ -22,8 +22,8 @@ import com.hanschen.easyloader.LoadedFrom;
 import com.hanschen.easyloader.request.Request;
 
 public class GetAction extends Action<Void> {
-    public GetAction(EasyLoader picasso, Request data, int memoryPolicy, int diskPolicy, Object tag, String key) {
-        super(picasso, null, data, memoryPolicy, diskPolicy, 0, null, key, tag, false);
+    public GetAction(EasyLoader loader, Request data, int memoryPolicy, int diskPolicy, Object tag, String key) {
+        super(loader, null, data, memoryPolicy, diskPolicy, 0, null, key, tag, false);
     }
 
     @Override

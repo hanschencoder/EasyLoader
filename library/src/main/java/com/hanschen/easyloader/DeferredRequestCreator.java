@@ -48,7 +48,6 @@ public class DeferredRequestCreator implements ViewTreeObserver.OnPreDrawListene
         // Since the view on which an image is being requested might not be attached to a hierarchy,
         // defer adding the pre-draw listener until the view is attached. This works around a platform
         // behavior where a global, dummy VTO is used until a real one is available on attach.
-        // See: https://github.com/square/picasso/issues/1321
         if (SDK_INT >= HONEYCOMB_MR1 && target.getWindowToken() == null) {
             attachListener = HoneycombMr1ViewUtil.defer(target, this);
         } else {

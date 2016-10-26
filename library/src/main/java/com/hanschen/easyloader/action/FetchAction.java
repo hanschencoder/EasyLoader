@@ -27,14 +27,14 @@ public class FetchAction extends Action<Object> {
     private final Object   target;
     private       Callback callback;
 
-    public FetchAction(EasyLoader picasso,
+    public FetchAction(EasyLoader loader,
                        Request data,
                        int memoryPolicy,
                        int diskPolicy,
                        Object tag,
                        String key,
                        Callback callback) {
-        super(picasso, null, data, memoryPolicy, diskPolicy, 0, null, key, tag, false);
+        super(loader, null, data, memoryPolicy, diskPolicy, 0, null, key, tag, false);
         this.target = new Object();
         this.callback = callback;
     }

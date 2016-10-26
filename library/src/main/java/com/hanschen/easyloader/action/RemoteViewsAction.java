@@ -34,7 +34,7 @@ public abstract class RemoteViewsAction extends Action<RemoteViewsAction.RemoteV
 
     private RemoteViewsTarget target;
 
-    public RemoteViewsAction(EasyLoader picasso,
+    public RemoteViewsAction(EasyLoader loader,
                              Request data,
                              RemoteViews remoteViews,
                              int viewId,
@@ -43,7 +43,7 @@ public abstract class RemoteViewsAction extends Action<RemoteViewsAction.RemoteV
                              int diskPolicy,
                              Object tag,
                              String key) {
-        super(picasso, null, data, memoryPolicy, diskPolicy, errorResId, null, key, tag, false);
+        super(loader, null, data, memoryPolicy, diskPolicy, errorResId, null, key, tag, false);
         this.remoteViews = remoteViews;
         this.viewId = viewId;
     }
@@ -104,7 +104,7 @@ public abstract class RemoteViewsAction extends Action<RemoteViewsAction.RemoteV
     public static class AppWidgetAction extends RemoteViewsAction {
         private final int[] appWidgetIds;
 
-        public AppWidgetAction(EasyLoader picasso,
+        public AppWidgetAction(EasyLoader loader,
                                Request data,
                                RemoteViews remoteViews,
                                int viewId,
@@ -114,7 +114,7 @@ public abstract class RemoteViewsAction extends Action<RemoteViewsAction.RemoteV
                                String key,
                                Object tag,
                                int errorResId) {
-            super(picasso, data, remoteViews, viewId, errorResId, memoryPolicy, diskPolicy, tag, key);
+            super(loader, data, remoteViews, viewId, errorResId, memoryPolicy, diskPolicy, tag, key);
             this.appWidgetIds = appWidgetIds;
         }
 
@@ -130,7 +130,7 @@ public abstract class RemoteViewsAction extends Action<RemoteViewsAction.RemoteV
         private final String       notificationTag;
         private final Notification notification;
 
-        public NotificationAction(EasyLoader picasso,
+        public NotificationAction(EasyLoader loader,
                                   Request data,
                                   RemoteViews remoteViews,
                                   int viewId,
@@ -142,7 +142,7 @@ public abstract class RemoteViewsAction extends Action<RemoteViewsAction.RemoteV
                                   String key,
                                   Object tag,
                                   int errorResId) {
-            super(picasso, data, remoteViews, viewId, errorResId, memoryPolicy, diskPolicy, tag, key);
+            super(loader, data, remoteViews, viewId, errorResId, memoryPolicy, diskPolicy, tag, key);
             this.notificationId = notificationId;
             this.notificationTag = notificationTag;
             this.notification = notification;

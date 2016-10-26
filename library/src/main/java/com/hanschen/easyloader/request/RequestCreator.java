@@ -16,7 +16,7 @@ import com.hanschen.easyloader.Dispatcher;
 import com.hanschen.easyloader.EasyLoader;
 import com.hanschen.easyloader.LoadedFrom;
 import com.hanschen.easyloader.MemoryPolicy;
-import com.hanschen.easyloader.PicassoDrawable;
+import com.hanschen.easyloader.EnhanceDrawable;
 import com.hanschen.easyloader.Priority;
 import com.hanschen.easyloader.Target;
 import com.hanschen.easyloader.Transformation;
@@ -438,7 +438,7 @@ public class RequestCreator {
         if (!builder.hasImage()) {
             loader.cancelRequest(target);
             if (setPlaceholder) {
-                PicassoDrawable.setPlaceholder(target, getPlaceholderDrawable());
+                EnhanceDrawable.setPlaceholder(target, getPlaceholderDrawable());
             }
             return;
         }
@@ -451,7 +451,7 @@ public class RequestCreator {
             int height = target.getHeight();
             if (width == 0 || height == 0) {
                 if (setPlaceholder) {
-                    PicassoDrawable.setPlaceholder(target, getPlaceholderDrawable());
+                    EnhanceDrawable.setPlaceholder(target, getPlaceholderDrawable());
                 }
                 loader.defer(target, new DeferredRequestCreator(this, target, callback));
                 return;
@@ -468,7 +468,7 @@ public class RequestCreator {
             Bitmap bitmap = loader.quickMemoryCacheCheck(key);
             if (bitmap != null) {
                 loader.cancelRequest(target);
-                PicassoDrawable.setBitmap(target, loader.getContext(), bitmap, LoadedFrom.MEMORY, noFade, loader.isIndicatorsEnabled());
+                EnhanceDrawable.setBitmap(target, loader.getContext(), bitmap, LoadedFrom.MEMORY, noFade, loader.isIndicatorsEnabled());
                 if (callback != null) {
                     callback.onSuccess();
                 }
@@ -477,7 +477,7 @@ public class RequestCreator {
         }
 
         if (setPlaceholder) {
-            PicassoDrawable.setPlaceholder(target, getPlaceholderDrawable());
+            EnhanceDrawable.setPlaceholder(target, getPlaceholderDrawable());
         }
 
         Action action = new ImageViewAction(loader, target, request, memoryPolicy, diskPolicy, errorResId, errorDrawable, key, tag, callback, noFade);

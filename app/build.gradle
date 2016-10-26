@@ -29,6 +29,7 @@ dependencies {
     compile rootProject.ext.dependencies.supportV13
     compile rootProject.ext.dependencies.supportDesign
     compile rootProject.ext.dependencies.recyclerview
+    compile rootProject.ext.dependencies.picasso
 
     testCompile rootProject.ext.dependencies.junit
 }

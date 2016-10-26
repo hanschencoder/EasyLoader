@@ -34,7 +34,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.concurrent.ThreadFactory;
 
 import static android.content.Context.ACTIVITY_SERVICE;
 import static android.content.pm.ApplicationInfo.FLAG_LARGE_HEAP;
@@ -151,11 +150,8 @@ final public class Utils {
             }
             return Settings.Global.getInt(contentResolver, Settings.Global.AIRPLANE_MODE_ON, 0) != 0;
         } catch (NullPointerException e) {
-            // https://github.com/square/picasso/issues/761, some devices might crash here, assume that
-            // airplane mode is off.
             return false;
         } catch (SecurityException e) {
-            //https://github.com/square/picasso/issues/1197
             return false;
         }
     }
@@ -211,15 +207,15 @@ final public class Utils {
         }
     }
 
-    public static class PicassoThreadFactory implements ThreadFactory {
+    public static class ThreadFactory implements java.util.concurrent.ThreadFactory {
         @SuppressWarnings("NullableProblems")
         public Thread newThread(Runnable r) {
-            return new PicassoThread(r);
+            return new EasyLoaderThread(r);
         }
     }
 
-    private static class PicassoThread extends Thread {
-        public PicassoThread(Runnable r) {
+    private static class EasyLoaderThread extends Thread {
+        public EasyLoaderThread(Runnable r) {
             super(r);
         }
 

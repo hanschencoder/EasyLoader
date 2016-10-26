@@ -23,14 +23,14 @@ import android.widget.ImageView;
 import com.hanschen.easyloader.Callback;
 import com.hanschen.easyloader.EasyLoader;
 import com.hanschen.easyloader.LoadedFrom;
-import com.hanschen.easyloader.PicassoDrawable;
+import com.hanschen.easyloader.EnhanceDrawable;
 import com.hanschen.easyloader.request.Request;
 
 public class ImageViewAction extends Action<ImageView> {
 
     Callback callback;
 
-    public ImageViewAction(EasyLoader picasso,
+    public ImageViewAction(EasyLoader loader,
                            ImageView imageView,
                            Request data,
                            int memoryPolicy,
@@ -41,7 +41,7 @@ public class ImageViewAction extends Action<ImageView> {
                            Object tag,
                            Callback callback,
                            boolean noFade) {
-        super(picasso, imageView, data, memoryPolicy, diskPolicy, errorResId, errorDrawable, key, tag, noFade);
+        super(loader, imageView, data, memoryPolicy, diskPolicy, errorResId, errorDrawable, key, tag, noFade);
         this.callback = callback;
     }
 
@@ -56,7 +56,7 @@ public class ImageViewAction extends Action<ImageView> {
             return;
         }
 
-        PicassoDrawable.setBitmap(target, loader.getContext(), result, from, noFade, loader.isIndicatorsEnabled());
+        EnhanceDrawable.setBitmap(target, loader.getContext(), result, from, noFade, loader.isIndicatorsEnabled());
 
         if (callback != null) {
             callback.onSuccess();
