@@ -179,7 +179,7 @@ public class BitmapHunter implements Runnable {
             if (result == null) {
                 dispatcher.dispatchFailed(this);
             } else {
-                dispatcher.dispatchComplete(this);
+                dispatcher.dispatchSuccess(this);
             }
         } catch (ResponseException e) {
             if (e.getResponseCode() != 504) {
@@ -330,6 +330,13 @@ public class BitmapHunter implements Runnable {
         return future != null && future.isCancelled();
     }
 
+    /**
+     * 根据网络状态以及已重试次数，返回是否需要继续尝试发起请求
+     *
+     * @param airplaneMode 飞行模式
+     * @param info         网络状态
+     * @return 是否重试
+     */
     boolean shouldRetry(boolean airplaneMode, NetworkInfo info) {
         if (retryCount <= 0) {
             return false;

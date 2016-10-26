@@ -26,6 +26,7 @@ import com.hanschen.easyloader.action.GetAction;
 import com.hanschen.easyloader.action.ImageViewAction;
 import com.hanschen.easyloader.action.RemoteViewsAction;
 import com.hanschen.easyloader.action.TargetAction;
+import com.hanschen.easyloader.log.EasyLoaderLog;
 import com.hanschen.easyloader.util.ThreadChecker;
 import com.hanschen.easyloader.util.Utils;
 
@@ -460,6 +461,7 @@ public class RequestCreator {
 
         long started = System.nanoTime();
         Request request = createRequest(started);
+        EasyLoaderLog.d("request: ", request.toString());
         String key = Utils.createKey(request);
 
         if (shouldReadFromMemoryCache(memoryPolicy)) {

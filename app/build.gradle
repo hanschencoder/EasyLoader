@@ -28,6 +28,7 @@ dependencies {
     compile project(':library')
     compile rootProject.ext.dependencies.supportV13
     compile rootProject.ext.dependencies.supportDesign
+    compile rootProject.ext.dependencies.recyclerview
 
     testCompile rootProject.ext.dependencies.junit
 }

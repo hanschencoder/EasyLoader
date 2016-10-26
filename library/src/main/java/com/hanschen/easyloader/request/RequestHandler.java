@@ -34,7 +34,7 @@ public abstract class RequestHandler {
     }
 
     /**
-     * @return 是否放入重新请求列表，若为true,则网络再次联通的时候将会重新请求
+     * @return 是否支持联网重试，若为true,则网络再次联通的时候将会重新请求
      */
     public boolean supportsReplay() {
         return false;

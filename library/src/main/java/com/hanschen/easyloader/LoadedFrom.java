@@ -7,15 +7,24 @@ import android.graphics.Color;
  */
 public enum LoadedFrom {
 
-    MEMORY(Color.GREEN),
+    MEMORY(Color.GREEN, "MEMORY"),
 
-    DISK(Color.BLUE),
+    DISK(Color.BLUE, "DISK"),
 
-    NETWORK(Color.RED);
+    NETWORK(Color.RED, "NETWORK");
 
-    final int debugColor;
+    final int    debugColor;
+    final String description;
 
-    LoadedFrom(int debugColor) {
+    LoadedFrom(int debugColor, String description) {
         this.debugColor = debugColor;
+        this.description = description;
+    }
+
+    @Override
+    public String toString() {
+        return "LoadedFrom{" +
+                "description='" + description + '\'' +
+                '}';
     }
 }

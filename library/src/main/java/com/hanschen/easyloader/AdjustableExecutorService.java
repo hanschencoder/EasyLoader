@@ -15,9 +15,11 @@
  */
 package com.hanschen.easyloader;
 
+import android.content.Context;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.Build;
+import android.support.annotation.NonNull;
 import android.telephony.TelephonyManager;
 
 import com.hanschen.easyloader.util.Utils;
@@ -28,16 +30,18 @@ import java.util.concurrent.PriorityBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
-class PicassoExecutorService extends ThreadPoolExecutor {
+class AdjustableExecutorService extends ThreadPoolExecutor {
 
     private static final int DEFAULT_THREAD_COUNT = 3;
 
-    PicassoExecutorService(NetworkInfo networkInfo) {
+    AdjustableExecutorService(Context context) {
         super(DEFAULT_THREAD_COUNT, DEFAULT_THREAD_COUNT, 0, TimeUnit.MILLISECONDS, new PriorityBlockingQueue<Runnable>(), new Utils.PicassoThreadFactory());
-        adjustThreadCount(networkInfo);
+
+        ConnectivityManager connectivityManager = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
+        adjustThreadCount(connectivityManager.getActiveNetworkInfo());
     }
 
-    public void adjustThreadCount(NetworkInfo info) {
+    void adjustThreadCount(NetworkInfo info) {
         setThreadCount(getThreadCount(info));
     }
 
@@ -84,6 +88,7 @@ class PicassoExecutorService extends ThreadPoolExecutor {
     }
 
     @Override
+    @NonNull
     public Future<?> submit(Runnable task) {
         PicassoFutureTask futureTask = new PicassoFutureTask((BitmapHunter) task);
         execute(futureTask);
@@ -93,7 +98,7 @@ class PicassoExecutorService extends ThreadPoolExecutor {
     private static final class PicassoFutureTask extends FutureTask<BitmapHunter> implements Comparable<PicassoFutureTask> {
         private final BitmapHunter hunter;
 
-        public PicassoFutureTask(BitmapHunter hunter) {
+        PicassoFutureTask(BitmapHunter hunter) {
             super(hunter, null);
             this.hunter = hunter;
         }

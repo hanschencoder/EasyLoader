@@ -29,6 +29,8 @@ import android.os.Build;
 import android.os.SystemClock;
 import android.widget.ImageView;
 
+import com.hanschen.easyloader.log.EasyLoaderLog;
+
 import static android.graphics.Color.WHITE;
 
 public final class PicassoDrawable extends BitmapDrawable {
@@ -46,6 +48,7 @@ public final class PicassoDrawable extends BitmapDrawable {
                                  LoadedFrom loadedFrom,
                                  boolean noFade,
                                  boolean debugging) {
+        EasyLoaderLog.d("setBitmap", "loadedFrom: " + loadedFrom);
         Drawable placeholder = target.getDrawable();
         if (placeholder instanceof AnimationDrawable) {
             ((AnimationDrawable) placeholder).stop();

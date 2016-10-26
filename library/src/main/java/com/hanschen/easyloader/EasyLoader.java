@@ -3,6 +3,7 @@ package com.hanschen.easyloader;
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.Handler;
 import android.os.Looper;
@@ -19,6 +20,8 @@ import com.hanschen.easyloader.cache.LruMemoryCache;
 import com.hanschen.easyloader.cache.SizeCalculator;
 import com.hanschen.easyloader.callback.OnLoadListener;
 import com.hanschen.easyloader.downloader.Downloader;
+import com.hanschen.easyloader.downloader.Okhttp3Downloader;
+import com.hanschen.easyloader.log.EasyLoaderLog;
 import com.hanschen.easyloader.log.Logger;
 import com.hanschen.easyloader.request.NetworkRequestHandler;
 import com.hanschen.easyloader.request.RequestCreator;
@@ -27,14 +30,16 @@ import com.hanschen.easyloader.request.RequestTransformer;
 import com.hanschen.easyloader.util.AppUtils;
 import com.hanschen.easyloader.util.BitmapUtils;
 
+import java.io.BufferedOutputStream;
 import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.lang.ref.ReferenceQueue;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.WeakHashMap;
-import java.util.concurrent.ExecutorService;
 
 import static android.os.Process.THREAD_PRIORITY_BACKGROUND;
 import static com.hanschen.easyloader.MemoryPolicy.shouldReadFromMemoryCache;
@@ -48,27 +53,23 @@ public class EasyLoader implements Provider {
     @SuppressLint("StaticFieldLeak")
     private volatile static EasyLoader singleton;
 
-    private final    Context                                context;
-    /**
-     * 保存被gc的弱引用
-     */
-    private final    ReferenceQueue<Object>                 referenceQueue;
-    private volatile boolean                                loggingEnabled;
-    private final    Dispatcher                             dispatcher;
-    private final    List<RequestHandler>                   requestHandlers;
-    private final    CacheManager<String, Bitmap>           memoryCache;
-    private final    CacheManager<String, Bitmap>           diskCache;
-    private final    Bitmap.Config                          defaultBitmapConfig;
-    private final    RequestTransformer                     requestTransformer;
-    private final    OnLoadListener                         listener;
-    private final    CleanupThread                          cleanupThread;
-    private final    Map<Object, Action>                    targetToAction;
-    private final    Map<ImageView, DeferredRequestCreator> targetToDeferredRequestCreator;
-    private          boolean                                shutdown;
-    private          boolean                                indicatorsEnabled;
+    private final Context                                context;
+    private final ReferenceQueue<Object>                 referenceQueue;
+    private final Dispatcher                             dispatcher;
+    private final List<RequestHandler>                   requestHandlers;
+    private final CacheManager<String, Bitmap>           memoryCache;
+    private final CacheManager<String, Bitmap>           diskCache;
+    private final Bitmap.Config                          defaultBitmapConfig;
+    private final RequestTransformer                     requestTransformer;
+    private final OnLoadListener                         listener;
+    private final CleanupThread                          cleanupThread;
+    private final Map<Object, Action>                    targetToAction;
+    private final Map<ImageView, DeferredRequestCreator> targetToDeferredRequestCreator;
+    private       boolean                                shutdown;
+    private       boolean                                indicatorsEnabled;
 
     private EasyLoader(Context context,
-                       ExecutorService service,
+                       AdjustableExecutorService service,
                        CacheManager<String, Bitmap> memoryCache,
                        CacheManager<String, Bitmap> diskCache,
                        OnLoadListener listener,
@@ -79,6 +80,7 @@ public class EasyLoader implements Provider {
                        boolean indicatorsEnabled,
                        boolean loggingEnabled) {
 
+        EasyLoaderLog.logEnable(loggingEnabled);
         this.context = context.getApplicationContext();
         this.memoryCache = memoryCache;
         this.diskCache = diskCache;
@@ -86,7 +88,6 @@ public class EasyLoader implements Provider {
         this.defaultBitmapConfig = defaultBitmapConfig;
         this.requestTransformer = requestTransformer;
         this.indicatorsEnabled = indicatorsEnabled;
-        this.loggingEnabled = loggingEnabled;
 
         //初始化requestHandlers
         List<RequestHandler> allRequestHandlers = new ArrayList<>();
@@ -119,17 +120,12 @@ public class EasyLoader implements Provider {
         shutdown = true;
     }
 
-    public boolean isLoggingEnabled() {
-        return loggingEnabled;
-    }
-
     static final Handler HANDLER = new Handler(Looper.getMainLooper()) {
         @Override
         public void handleMessage(Message msg) {
             switch (msg.what) {
                 case Dispatcher.HUNTER_BATCH_COMPLETE: {
                     @SuppressWarnings("unchecked") List<BitmapHunter> batch = (List<BitmapHunter>) msg.obj;
-                    //noinspection ForLoopReplaceableByForEach
                     for (int i = 0, n = batch.size(); i < n; i++) {
                         BitmapHunter hunter = batch.get(i);
                         hunter.loader.complete(hunter);
@@ -155,6 +151,11 @@ public class EasyLoader implements Provider {
         }
     };
 
+    /**
+     * 取消target对应的请求
+     *
+     * @param target target
+     */
     private void cancelExistingRequest(Object target) {
         checkMain();
         Action action = targetToAction.remove(target);
@@ -171,10 +172,18 @@ public class EasyLoader implements Provider {
         }
     }
 
+    /**
+     * 提交Action
+     *
+     * @param action 提交Action
+     */
     public void submit(Action action) {
         dispatcher.dispatchSubmit(action);
     }
 
+    /**
+     * 保存Target-Action对应关系，提交Action
+     */
     public void enqueueAndSubmit(Action action) {
         Object target = action.getTarget();
         if (target != null && targetToAction.get(target) != action) {
@@ -184,16 +193,9 @@ public class EasyLoader implements Provider {
         submit(action);
     }
 
-    public void cancelRequest(ImageView view) {
-        if (view == null) {
-            throw new IllegalArgumentException("view cannot be null.");
-        }
-        cancelExistingRequest(view);
-    }
-
-    public void cancelRequest(Target target) {
+    public <T> void cancelRequest(T target) {
         if (target == null) {
-            throw new IllegalArgumentException("target cannot be null.");
+            throw new IllegalArgumentException("view cannot be null.");
         }
         cancelExistingRequest(target);
     }
@@ -278,7 +280,8 @@ public class EasyLoader implements Provider {
     }
 
     /**
-     * 当Action中的target被GC掉之后，取消掉对应的Action
+     * 当Action中的target被GC掉之后，会把target的弱引用保存到{@link EasyLoader#referenceQueue}中
+     * 通过检查检查这个队列，把target对应的Action取消
      */
     private static class CleanupThread extends Thread {
         private final ReferenceQueue<Object> referenceQueue;
@@ -296,6 +299,7 @@ public class EasyLoader implements Provider {
             Process.setThreadPriority(THREAD_PRIORITY_BACKGROUND);
             while (true) {
                 try {
+                    // FIXME: 2016/10/26 referenceQueue队列的弱引用通过get方法应该一直返回null，如何得到对应的target？
                     Action.RequestWeakReference<?> remove = (Action.RequestWeakReference<?>) referenceQueue.remove(1000);
                     if (remove != null) {
                         Message message = handler.obtainMessage();
@@ -387,6 +391,7 @@ public class EasyLoader implements Provider {
         private static final long DEFAULT_MEMORY_CACHE_SIZE = 250 * 1024 * 1024;
 
         private final Context                      context;
+        private       AdjustableExecutorService    service;
         private       boolean                      logEnable;
         private       Logger                       logger;
         private       CacheManager<String, Bitmap> memoryCacheManager;
@@ -394,7 +399,6 @@ public class EasyLoader implements Provider {
         private       File                         cacheDirectory;
         private       OnLoadListener               listener;
         private       RequestTransformer           transformer;
-        private       ExecutorService              service;
         private       Bitmap.Config                defaultBitmapConfig;
         private       Downloader                   downloader;
         private       List<RequestHandler>         requestHandlers;
@@ -411,6 +415,11 @@ public class EasyLoader implements Provider {
         }
 
         public EasyLoader build() {
+
+            if (service == null) {
+                service = new AdjustableExecutorService(context);
+            }
+
             if (memoryCacheManager == null) {
                 memoryCacheManager = new LruMemoryCache<>(maxMemoryCacheSize, new SizeCalculator<Bitmap>() {
                     @Override
@@ -419,6 +428,7 @@ public class EasyLoader implements Provider {
                     }
                 });
             }
+
             if (diskCacheManager == null) {
                 if (cacheDirectory == null) {
                     File directory = context.getExternalCacheDir();
@@ -431,13 +441,20 @@ public class EasyLoader implements Provider {
                         diskCacheManager = new LruDiskCache<>(cacheDirectory, maxDiskCacheSize, AppUtils.getVersionCode(context), new LruDiskCache.FileConverter<Bitmap>() {
                             @Override
                             public Bitmap readFrom(File file) {
-                                // TODO: 2016/8/16  
-                                return null;
+                                return BitmapFactory.decodeFile(file.getAbsolutePath(), null);
                             }
 
                             @Override
                             public boolean writeTo(Bitmap value, File to) {
-                                // TODO: 2016/8/16  
+                                try {
+                                    BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(to));
+                                    value.compress(Bitmap.CompressFormat.JPEG, 100, bos);
+                                    bos.flush();
+                                    bos.close();
+                                    return true;
+                                } catch (IOException e) {
+                                    e.printStackTrace();
+                                }
                                 return false;
                             }
                         });
@@ -446,8 +463,16 @@ public class EasyLoader implements Provider {
                 }
             }
 
+            if (transformer == null) {
+                transformer = RequestTransformer.IDENTITY;
+            }
 
-            EasyLoader loader = new EasyLoader(null, null, null, null, null, null, null, null, null, true, true);
+            if (downloader == null) {
+                downloader = new Okhttp3Downloader();
+            }
+
+
+            EasyLoader loader = new EasyLoader(context, service, memoryCacheManager, diskCacheManager, null, null, null, transformer, downloader, true, true);
             loader.apply(Builder.this);
             return loader;
         }

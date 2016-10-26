@@ -285,6 +285,6 @@ final public class Utils {
             }
         }
 
-        return builder.toString();
+        return MD5Utils.getMD5(builder.toString());
     }
 }

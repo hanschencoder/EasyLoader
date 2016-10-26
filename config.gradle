@@ -16,8 +16,10 @@ ext {
             supportV13        : "com.android.support:support-v13:$supportLibrariesVersion",
             supportAnnotations: "com.android.support:support-annotations:$supportLibrariesVersion",
             supportDesign     : "com.android.support:design:$supportLibrariesVersion",
+            recyclerview      : "com.android.support:recyclerview-v7:$supportLibrariesVersion",
             junit             : 'junit:junit:4.12',
-            commonsCodec      : "commons-codec:commons-codec:1.10",
+            commonsCodec      : 'commons-codec:commons-codec:1.10',
+
     ]
 
 

@@ -1,15 +1,32 @@
 package com.hanschen.easyloader.example;
 
 import android.os.Bundle;
-import android.support.design.widget.FloatingActionButton;
-import android.support.design.widget.Snackbar;
 import android.support.v7.app.AppCompatActivity;
+import android.support.v7.widget.LinearLayoutManager;
+import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.Toolbar;
-import android.view.Menu;
-import android.view.MenuItem;
-import android.view.View;
+
+import com.hanschen.easyloader.example.adapter.ImageAdapter;
+
+import java.util.Arrays;
 
 public class MainActivity extends AppCompatActivity {
+
+    private String[] picture = new String[]{"http://192.168.60.251/1.jpg",
+            "http://192.168.60.251/2.jpg",
+            "http://192.168.60.251/3.jpg",
+            "http://192.168.60.251/4.jpg",
+            "http://192.168.60.251/5.jpg",
+            "http://192.168.60.251/6.jpg",
+            "http://192.168.60.251/7.jpg",
+            "http://192.168.60.251/8.jpg",
+            "http://192.168.60.251/9.jpg",
+            "http://192.168.60.251/10.jpg",
+            "http://192.168.60.251/11.jpg",
+            "http://192.168.60.251/12.jpg",
+            "http://192.168.60.251/13.jpg",
+            "http://192.168.60.251/14.jpg",
+            "http://192.168.60.251/15.jpg",};
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -17,35 +34,12 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
-
-        FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
-        fab.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG).setAction("Action", null).show();
-            }
-        });
+        setupRecycleView();
     }
 
-    @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
-        // Inflate the menu; this adds items to the action bar if it is present.
-        getMenuInflater().inflate(R.menu.menu_main, menu);
-        return true;
-    }
-
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        // Handle action bar item clicks here. The action bar will
-        // automatically handle clicks on the Home/Up button, so long
-        // as you specify a parent activity in AndroidManifest.xml.
-        int id = item.getItemId();
-
-        //noinspection SimplifiableIfStatement
-        if (id == R.id.action_settings) {
-            return true;
-        }
-
-        return super.onOptionsItemSelected(item);
+    private void setupRecycleView() {
+        RecyclerView recyclerView = (RecyclerView) findViewById(R.id.image_list);
+        recyclerView.setLayoutManager(new LinearLayoutManager(this));
+        recyclerView.setAdapter(new ImageAdapter(MainActivity.this, Arrays.asList(picture)));
     }
 }
