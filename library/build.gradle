@@ -1,4 +1,7 @@
 apply plugin: 'com.android.library'
+//apply plugin: 'com.github.dcendents.android-maven'
+//apply plugin: 'com.jfrog.bintray'
+//version = "1.0.0"
 
 android {
     compileSdkVersion rootProject.ext.compileSdkVersion
@@ -32,3 +35,73 @@ dependencies {
 
     testCompile rootProject.ext.dependencies.junit
 }
+
+//def siteUrl = 'https://github.com/shensky711/EasyLoader'
+//def gitUrl = 'https://github.com/shensky711/EasyLoader.git'
+//group = 'com.hanschen.easyloader'
+//
+//install {
+//    repositories.mavenInstaller {
+//        pom {
+//            project {
+//                packaging 'aar'
+//                name 'An easy image loader for Android'
+//                url siteUrl
+//                licenses {
+//                    license {
+//                        name 'The Apache Software License, Version 2.0'
+//                        url 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+//                    }
+//                }
+//                developers {
+//                    developer {
+//                        id 'HansChen'
+//                        name 'HansChen'
+//                        email 'shensky711@gmail.com'
+//                    }
+//                }
+//                scm {
+//                    connection gitUrl
+//                    developerConnection gitUrl
+//                    url siteUrl
+//                }
+//            }
+//        }
+//    }
+//}
+//
+//task sourcesJar(type: Jar) {
+//    from android.sourceSets.main.java.srcDirs
+//    classifier = 'sources'
+//}
+//
+//task javadoc(type: Javadoc) {
+//    source = android.sourceSets.main.java.srcDirs
+//    classpath += project.files(android.getBootClasspath().join(File.pathSeparator))
+//}
+//
+//task javadocJar(type: Jar, dependsOn: javadoc) {
+//    classifier = 'javadoc'
+//    from javadoc.destinationDir
+//}
+//
+//artifacts {
+//    archives javadocJar
+//    archives sourcesJar
+//}
+//
+//bintray {
+//
+//    user = project.hasProperty('bintray.user') ? project.property('bintray.user') : System.getenv('BINTRAY_USER')
+//    key = project.hasProperty('bintray.apikey') ? project.property('bintray.apikey') : System.getenv('BINTRAY_API_KEY')
+//
+//    configurations = ['archives']
+//    pkg {
+//        repo = 'maven'
+//        name = 'EasyLoader'
+//        websiteUrl = 'https://github.com/bintray/gradle-bintray-plugin'
+//        vcsUrl = gitUrl
+//        licenses = ['Apache-2.0']
+//        publish = true
+//    }
+//}
