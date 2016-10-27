@@ -299,7 +299,6 @@ public class Request {
 
         /**
          * Set the target image Uri.
-         * <p/>
          * This will clear an image resource ID if one is set.
          */
         public Builder setUri(Uri uri) {
@@ -313,7 +312,6 @@ public class Request {
 
         /**
          * Set the target image resource ID.
-         * <p/>
          * This will clear an image Uri if one is set.
          */
         public Builder setResourceId(int resourceId) {
@@ -484,7 +482,6 @@ public class Request {
 
         /**
          * Add a custom transformation to be applied to the image.
-         * <p/>
          * Custom transformations will always be run after the built-in transformations.
          */
         public Builder transform(Transformation transformation) {
@@ -503,7 +500,6 @@ public class Request {
 
         /**
          * Add a list of custom transformations to be applied to the image.
-         * <p/>
          * Custom transformations will always be run after the built-in transformations.
          */
         public Builder transform(List<? extends Transformation> transformations) {
