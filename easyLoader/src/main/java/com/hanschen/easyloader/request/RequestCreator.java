@@ -14,9 +14,9 @@ import com.hanschen.easyloader.DeferredRequestCreator;
 import com.hanschen.easyloader.DiskPolicy;
 import com.hanschen.easyloader.Dispatcher;
 import com.hanschen.easyloader.EasyLoader;
+import com.hanschen.easyloader.EnhanceDrawable;
 import com.hanschen.easyloader.LoadedFrom;
 import com.hanschen.easyloader.MemoryPolicy;
-import com.hanschen.easyloader.EnhanceDrawable;
 import com.hanschen.easyloader.Priority;
 import com.hanschen.easyloader.Target;
 import com.hanschen.easyloader.Transformation;
@@ -154,9 +154,13 @@ public class RequestCreator {
         return tag;
     }
 
+    /**
+     * fit is not support now
+     */
     public RequestCreator fit() {
-        deferred = true;
-        return this;
+        throw new UnsupportedOperationException("fit is not support now");
+//        deferred = true;
+//        return this;
     }
 
     public RequestCreator unfit() {
@@ -357,7 +361,15 @@ public class RequestCreator {
 
         target.onPrepareLoad(setPlaceholder ? getPlaceholderDrawable() : null);
 
-        Action action = new TargetAction(loader, target, finalRequest, memoryPolicy, diskPolicy, errorDrawable, key, tag, errorResId);
+        Action action = new TargetAction(loader,
+                                         target,
+                                         finalRequest,
+                                         memoryPolicy,
+                                         diskPolicy,
+                                         errorDrawable,
+                                         key,
+                                         tag,
+                                         errorResId);
         loader.enqueueAndSubmit(action);
     }
 
@@ -387,7 +399,18 @@ public class RequestCreator {
         Request request = createRequest(started);
         String key = Utils.createKey(request, new StringBuilder());
 
-        RemoteViewsAction action = new RemoteViewsAction.NotificationAction(loader, request, remoteViews, viewId, notificationId, notification, notificationTag, memoryPolicy, diskPolicy, key, tag, errorResId);
+        RemoteViewsAction action = new RemoteViewsAction.NotificationAction(loader,
+                                                                            request,
+                                                                            remoteViews,
+                                                                            viewId,
+                                                                            notificationId,
+                                                                            notification,
+                                                                            notificationTag,
+                                                                            memoryPolicy,
+                                                                            diskPolicy,
+                                                                            key,
+                                                                            tag,
+                                                                            errorResId);
 
         performRemoteViewInto(action);
     }
@@ -415,7 +438,16 @@ public class RequestCreator {
         Request request = createRequest(started);
         String key = Utils.createKey(request, new StringBuilder()); // Non-main thread needs own builder.
 
-        RemoteViewsAction action = new RemoteViewsAction.AppWidgetAction(loader, request, remoteViews, viewId, appWidgetIds, memoryPolicy, diskPolicy, key, tag, errorResId);
+        RemoteViewsAction action = new RemoteViewsAction.AppWidgetAction(loader,
+                                                                         request,
+                                                                         remoteViews,
+                                                                         viewId,
+                                                                         appWidgetIds,
+                                                                         memoryPolicy,
+                                                                         diskPolicy,
+                                                                         key,
+                                                                         tag,
+                                                                         errorResId);
 
         performRemoteViewInto(action);
     }
@@ -468,7 +500,12 @@ public class RequestCreator {
             Bitmap bitmap = loader.quickMemoryCacheCheck(key);
             if (bitmap != null) {
                 loader.cancelRequest(target);
-                EnhanceDrawable.setBitmap(target, loader.getContext(), bitmap, LoadedFrom.MEMORY, noFade, loader.isIndicatorsEnabled());
+                EnhanceDrawable.setBitmap(target,
+                                          loader.getContext(),
+                                          bitmap,
+                                          LoadedFrom.MEMORY,
+                                          noFade,
+                                          loader.isIndicatorsEnabled());
                 if (callback != null) {
                     callback.onSuccess();
                 }
@@ -480,7 +517,17 @@ public class RequestCreator {
             EnhanceDrawable.setPlaceholder(target, getPlaceholderDrawable());
         }
 
-        Action action = new ImageViewAction(loader, target, request, memoryPolicy, diskPolicy, errorResId, errorDrawable, key, tag, callback, noFade);
+        Action action = new ImageViewAction(loader,
+                                            target,
+                                            request,
+                                            memoryPolicy,
+                                            diskPolicy,
+                                            errorResId,
+                                            errorDrawable,
+                                            key,
+                                            tag,
+                                            callback,
+                                            noFade);
 
         loader.enqueueAndSubmit(action);
     }

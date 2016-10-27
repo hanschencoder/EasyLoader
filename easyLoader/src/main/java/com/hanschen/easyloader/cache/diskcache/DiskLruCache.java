@@ -157,7 +157,12 @@ public final class DiskLruCache implements Closeable {
     /**
      * This cache uses a single background thread to evict entries.
      */
-    final         ThreadPoolExecutor executorService = new ThreadPoolExecutor(0, 1, 60L, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>(), new DiskLruCacheThreadFactory());
+    final         ThreadPoolExecutor executorService = new ThreadPoolExecutor(0,
+                                                                              1,
+                                                                              60L,
+                                                                              TimeUnit.SECONDS,
+                                                                              new LinkedBlockingQueue<Runnable>(),
+                                                                              new DiskLruCacheThreadFactory());
     private final Callable<Void>     cleanupCallable = new Callable<Void>() {
         public Void call() throws Exception {
             synchronized (DiskLruCache.this) {
@@ -242,9 +247,8 @@ public final class DiskLruCache implements Closeable {
             String valueCountString = reader.readLine();
             String blank = reader.readLine();
             if (!MAGIC.equals(magic) || !VERSION_1.equals(version) || !Integer.toString(appVersion)
-                                                                              .equals(appVersionString) || !Integer.toString(valueCount)
-                                                                                                                   .equals(valueCountString) || !""
-                    .equals(blank)) {
+                                                                              .equals(appVersionString) || !Integer.toString(
+                    valueCount).equals(valueCountString) || !"".equals(blank)) {
                 throw new IOException("unexpected journal header: [" + magic + ", " + version + ", " + valueCountString + ", " + blank + "]");
             }
 
@@ -263,7 +267,8 @@ public final class DiskLruCache implements Closeable {
             if (reader.hasUnterminatedLine()) {
                 rebuildJournal();
             } else {
-                journalWriter = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(journalFile, true), Util.US_ASCII));
+                journalWriter = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(journalFile, true),
+                                                                          Util.US_ASCII));
             }
         } finally {
             Util.closeQuietly(reader);

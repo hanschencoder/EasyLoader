@@ -1,7 +1,6 @@
 package com.hanschen.easyloader.example.adapter;
 
 import android.content.Context;
-import android.net.Uri;
 import android.support.v7.widget.RecyclerView;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -34,13 +33,10 @@ public class ImageAdapter extends RecyclerView.Adapter<ImageAdapter.ImageHolder>
 
     @Override
     public void onBindViewHolder(ImageHolder holder, int position) {
-        Uri uri = Uri.parse(data.get(position));
-        EasyLoader.with(context)
-                  .load(uri)
+        EasyLoader.with(context).load(data.get(position))
 //                  .memoryPolicy(MemoryPolicy.NO_CACHE, MemoryPolicy.NO_STORE)
 //                  .diskPolicy(DiskPolicy.NO_CACHE, DiskPolicy.NO_STORE)
-                  .placeholder(R.mipmap.ic_launcher)
-                  .into(holder.picture);
+                  .placeholder(R.mipmap.ic_launcher).into(holder.picture);
     }
 
     @Override

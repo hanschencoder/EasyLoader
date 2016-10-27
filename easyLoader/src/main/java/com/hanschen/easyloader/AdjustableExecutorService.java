@@ -35,7 +35,12 @@ class AdjustableExecutorService extends ThreadPoolExecutor {
     private static final int DEFAULT_THREAD_COUNT = 3;
 
     AdjustableExecutorService() {
-        super(DEFAULT_THREAD_COUNT, DEFAULT_THREAD_COUNT, 0, TimeUnit.MILLISECONDS, new PriorityBlockingQueue<Runnable>(), new Utils.ThreadFactory());
+        super(DEFAULT_THREAD_COUNT,
+              DEFAULT_THREAD_COUNT,
+              0,
+              TimeUnit.MILLISECONDS,
+              new PriorityBlockingQueue<Runnable>(),
+              new Utils.ThreadFactory());
     }
 
     void adjustThreadCount(NetworkInfo info) {

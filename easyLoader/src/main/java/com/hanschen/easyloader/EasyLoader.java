@@ -31,6 +31,7 @@ import com.hanschen.easyloader.request.NetworkRequestHandler;
 import com.hanschen.easyloader.request.RequestCreator;
 import com.hanschen.easyloader.request.RequestHandler;
 import com.hanschen.easyloader.request.RequestTransformer;
+import com.hanschen.easyloader.request.ResourceRequestHandler;
 import com.hanschen.easyloader.util.AppUtils;
 import com.hanschen.easyloader.util.BitmapUtils;
 
@@ -98,6 +99,7 @@ public class EasyLoader implements Provider {
 
         //初始化requestHandlers
         List<RequestHandler> allRequestHandlers = new ArrayList<>();
+        allRequestHandlers.add(new ResourceRequestHandler(context));
         allRequestHandlers.add(new ContactsPhotoRequestHandler(context));
         allRequestHandlers.add(new MediaStoreRequestHandler(context));
         allRequestHandlers.add(new ContentStreamRequestHandler(context));
@@ -368,8 +370,46 @@ public class EasyLoader implements Provider {
         return singleton;
     }
 
+    /**
+     * 加载uri指定图片
+     */
     public RequestCreator load(Uri uri) {
         return new RequestCreator(EasyLoader.this, uri, 0, requestTransformer, dispatcher);
+    }
+
+    /**
+     * 加载资源ID对应的图片
+     */
+    public RequestCreator load(int resourceId) {
+        if (resourceId == 0) {
+            throw new IllegalArgumentException("Resource ID must not be zero.");
+        }
+        return new RequestCreator(EasyLoader.this, null, resourceId, requestTransformer, dispatcher);
+    }
+
+    /**
+     * 加载文件
+     *
+     * @param file 若传入{@code null}将不会发起任何请求，但会设置placeholder
+     */
+    public RequestCreator load(File file) {
+        if (file == null) {
+            return new RequestCreator(this, null, 0, requestTransformer, dispatcher);
+        }
+        return load(Uri.fromFile(file));
+    }
+
+    /**
+     * 加载uri对应的图片
+     */
+    public RequestCreator load(String uri) {
+        if (uri == null) {
+            return new RequestCreator(this, null, 0, requestTransformer, dispatcher);
+        }
+        if (uri.trim().length() == 0) {
+            throw new IllegalArgumentException("Path must not be empty.");
+        }
+        return load(Uri.parse(uri));
     }
 
     @Override

@@ -193,7 +193,9 @@ public class Dispatcher {
      * 飞行模式状态变化
      */
     private void dispatchAirplaneModeChange(boolean airplaneMode) {
-        dispatcherHandler.sendMessage(dispatcherHandler.obtainMessage(AIRPLANE_MODE_CHANGE, airplaneMode ? AIRPLANE_MODE_ON : AIRPLANE_MODE_OFF, 0));
+        dispatcherHandler.sendMessage(dispatcherHandler.obtainMessage(AIRPLANE_MODE_CHANGE,
+                                                                      airplaneMode ? AIRPLANE_MODE_ON : AIRPLANE_MODE_OFF,
+                                                                      0));
     }
 
     /**

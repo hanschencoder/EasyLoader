@@ -520,7 +520,22 @@ public class Request {
             if (priority == null) {
                 priority = Priority.NORMAL;
             }
-            return new Request(uri, resourceId, stableKey, transformations, targetWidth, targetHeight, centerCrop, centerInside, onlyScaleDown, rotationDegrees, rotationPivotX, rotationPivotY, hasRotationPivot, purgeable, config, priority);
+            return new Request(uri,
+                               resourceId,
+                               stableKey,
+                               transformations,
+                               targetWidth,
+                               targetHeight,
+                               centerCrop,
+                               centerInside,
+                               onlyScaleDown,
+                               rotationDegrees,
+                               rotationPivotX,
+                               rotationPivotY,
+                               hasRotationPivot,
+                               purgeable,
+                               config,
+                               priority);
         }
     }
 }
