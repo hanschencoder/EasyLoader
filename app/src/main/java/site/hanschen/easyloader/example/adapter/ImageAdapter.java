@@ -29,6 +29,14 @@ public class ImageAdapter extends RecyclerView.Adapter<ImageAdapter.ImageHolder>
 
     @Override
     public void onBindViewHolder(ImageHolder holder, int position) {
+
+        int height = 800;
+        ViewGroup.LayoutParams layoutParams = holder.picture.getLayoutParams();
+        if (position == 0) {
+            layoutParams.height = height / 2;
+        } else {
+            layoutParams.height = height;
+        }
         EasyLoader.with(context).load(data.get(position))
 //                  .memoryPolicy(MemoryPolicy.NO_CACHE, MemoryPolicy.NO_STORE)
 //                  .diskPolicy(DiskPolicy.NO_CACHE, DiskPolicy.NO_STORE)

@@ -370,7 +370,7 @@ public class EasyLoader implements Provider {
             synchronized (EasyLoader.class) {
                 if (singleton == null) {
                     singleton = new Builder(context).downloader(new OkHttp3Downloader())
-                                                    .indicatorsEnabled(true)
+                                                    .indicatorsEnabled(false)
                                                     .logEnable(true)
                                                     .maxMemoryCacheSize(60 * 1024 * 1024)// TODO: 2016/10/26 根据设备型号计算
                                                     .maxDiskCacheSize(100 * 1024 * 1024)// TODO: 2016/10/26 根据存储状态自动计算
