@@ -12,10 +12,6 @@ import com.hanschen.easyloader.example.R;
 
 import java.util.List;
 
-/**
- * Created by chenhang on 2016/10/26.
- */
-
 public class ImageAdapter extends RecyclerView.Adapter<ImageAdapter.ImageHolder> {
 
     private Context      context;

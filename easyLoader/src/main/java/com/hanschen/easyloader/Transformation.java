@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013 Square, Inc.
+ * Copyright 2016 Hans Chen
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,20 +17,10 @@ package com.hanschen.easyloader;
 
 import android.graphics.Bitmap;
 
-/**
- * Image transformation.
- */
+
 public interface Transformation {
-    /**
-     * Transform the source bitmap into a new bitmap. If you create a new bitmap instance, you must
-     * call {@link Bitmap#recycle()} on {@code source}. You may return the original
-     * if no transformation is required.
-     */
+
     Bitmap transform(Bitmap source);
 
-    /**
-     * Returns a unique key for the transformation, used for caching purposes. If the transformation
-     * has parameters (e.g. size, scale factor, etc) then these should be part of the key.
-     */
     String key();
 }

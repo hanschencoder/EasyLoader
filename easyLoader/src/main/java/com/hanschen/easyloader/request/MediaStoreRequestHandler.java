@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014 Square, Inc.
+ * Copyright 2016 Hans Chen
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -63,8 +63,8 @@ public class MediaStoreRequestHandler extends ContentStreamRequestHandler {
         boolean isVideo = mimeType != null && mimeType.startsWith("video/");
 
         if (request.hasSize()) {
-            Kind picassoKind = getKind(request.targetWidth, request.targetHeight);
-            if (!isVideo && picassoKind == FULL) {
+            Kind kind = getKind(request.targetWidth, request.targetHeight);
+            if (!isVideo && kind == FULL) {
                 return new Result(null, getInputStream(request), DISK, exifOrientation);
             }
 
@@ -73,22 +73,17 @@ public class MediaStoreRequestHandler extends ContentStreamRequestHandler {
             BitmapFactory.Options options = createBitmapOptions(request);
             options.inJustDecodeBounds = true;
 
-            calculateInSampleSize(request.targetWidth,
-                                  request.targetHeight,
-                                  picassoKind.width,
-                                  picassoKind.height,
-                                  options,
-                                  request);
+            calculateInSampleSize(request.targetWidth, request.targetHeight, kind.width, kind.height, options, request);
 
             Bitmap bitmap;
 
             if (isVideo) {
                 // Since MediaStore doesn't provide the full screen kind thumbnail, we use the mini kind
                 // instead which is the largest thumbnail size can be fetched from MediaStore.
-                int kind = (picassoKind == FULL) ? MediaStore.Video.Thumbnails.MINI_KIND : picassoKind.androidKind;
-                bitmap = MediaStore.Video.Thumbnails.getThumbnail(contentResolver, id, kind, options);
+                int tempKind = (kind == FULL) ? MediaStore.Video.Thumbnails.MINI_KIND : kind.androidKind;
+                bitmap = MediaStore.Video.Thumbnails.getThumbnail(contentResolver, id, tempKind, options);
             } else {
-                bitmap = Images.Thumbnails.getThumbnail(contentResolver, id, picassoKind.androidKind, options);
+                bitmap = Images.Thumbnails.getThumbnail(contentResolver, id, kind.androidKind, options);
             }
 
             if (bitmap != null) {
