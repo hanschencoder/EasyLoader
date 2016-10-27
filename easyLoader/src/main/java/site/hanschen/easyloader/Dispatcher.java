@@ -28,10 +28,6 @@ import android.os.HandlerThread;
 import android.os.Looper;
 import android.os.Message;
 
-import site.hanschen.easyloader.action.Action;
-import site.hanschen.easyloader.cache.CacheManager;
-import site.hanschen.easyloader.util.Utils;
-
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -40,6 +36,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.WeakHashMap;
+
+import site.hanschen.easyloader.action.Action;
+import site.hanschen.easyloader.cache.CacheManager;
+import site.hanschen.easyloader.util.Utils;
 
 import static android.content.Context.CONNECTIVITY_SERVICE;
 import static android.content.Intent.ACTION_AIRPLANE_MODE_CHANGED;

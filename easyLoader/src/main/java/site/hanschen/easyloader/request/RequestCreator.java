@@ -23,6 +23,10 @@ import android.net.Uri;
 import android.widget.ImageView;
 import android.widget.RemoteViews;
 
+import java.io.IOException;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
+
 import site.hanschen.easyloader.BitmapHunter;
 import site.hanschen.easyloader.Callback;
 import site.hanschen.easyloader.DeferredRequestCreator;
@@ -44,10 +48,6 @@ import site.hanschen.easyloader.action.TargetAction;
 import site.hanschen.easyloader.log.EasyLoaderLog;
 import site.hanschen.easyloader.util.ThreadChecker;
 import site.hanschen.easyloader.util.Utils;
-
-import java.io.IOException;
-import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import static site.hanschen.easyloader.MemoryPolicy.shouldReadFromMemoryCache;
 

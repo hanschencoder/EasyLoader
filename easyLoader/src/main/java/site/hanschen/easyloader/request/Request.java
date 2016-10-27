@@ -18,12 +18,12 @@ package site.hanschen.easyloader.request;
 import android.graphics.Bitmap;
 import android.net.Uri;
 
-import site.hanschen.easyloader.Priority;
-import site.hanschen.easyloader.Transformation;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+
+import site.hanschen.easyloader.Priority;
+import site.hanschen.easyloader.Transformation;
 
 import static java.util.Collections.unmodifiableList;
 

@@ -28,6 +28,17 @@ import android.support.annotation.NonNull;
 import android.support.annotation.VisibleForTesting;
 import android.widget.ImageView;
 
+import java.io.BufferedOutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.lang.ref.ReferenceQueue;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.WeakHashMap;
+
 import site.hanschen.easyloader.action.Action;
 import site.hanschen.easyloader.cache.CacheManager;
 import site.hanschen.easyloader.cache.LruDiskCache;
@@ -49,17 +60,6 @@ import site.hanschen.easyloader.request.RequestTransformer;
 import site.hanschen.easyloader.request.ResourceRequestHandler;
 import site.hanschen.easyloader.util.AppUtils;
 import site.hanschen.easyloader.util.BitmapUtils;
-
-import java.io.BufferedOutputStream;
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.lang.ref.ReferenceQueue;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.WeakHashMap;
 
 import static android.os.Process.THREAD_PRIORITY_BACKGROUND;
 import static site.hanschen.easyloader.MemoryPolicy.shouldReadFromMemoryCache;
