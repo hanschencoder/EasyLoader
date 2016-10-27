@@ -1,1 +1,4 @@
-include ':app', ':easyLoader'
+include ':app'
+include ':easyLoader'
+
+rootProject.name = 'EasyLoader'

@@ -38,7 +38,7 @@ dependencies {
 
 //def siteUrl = 'https://github.com/shensky711/EasyLoader'
 //def gitUrl = 'https://github.com/shensky711/EasyLoader.git'
-//group = 'com.hanschen.easyloader'
+//group = 'site.hanschen.easyloader'
 //
 //install {
 //    repositories.mavenInstaller {
