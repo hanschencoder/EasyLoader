@@ -41,17 +41,16 @@ public abstract class Action<T> {
         }
     }
 
-    public final EasyLoader       loader;
-    public final Request          request;
-    final        WeakReference<T> target;
-    final        boolean          noFade;
-    final        int              memoryPolicy;
-    final        int              diskPolicy;
-    final        int              errorResId;
-    final        Drawable         errorDrawable;
-    final        String           key;
-    final        Object           tag;
-
+    final EasyLoader       loader;
+    final Request          request;
+    final WeakReference<T> target;
+    final boolean          noFade;
+    final int              memoryPolicy;
+    final int              diskPolicy;
+    final int              errorResId;
+    final Drawable         errorDrawable;
+    final String           key;
+    final Object           tag;
     boolean willReplay;
     boolean cancelled;
 

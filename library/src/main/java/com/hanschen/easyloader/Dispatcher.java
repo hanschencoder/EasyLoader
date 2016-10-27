@@ -215,6 +215,7 @@ public class Dispatcher {
             return;
         }
 
+        //请求相同，直接attach到已有的hunter中
         BitmapHunter hunter = hunterMap.get(action.getKey());
         if (hunter != null) {
             hunter.attach(action);
@@ -226,8 +227,9 @@ public class Dispatcher {
         }
 
         hunter = BitmapHunter.forRequest(action.getLoader(), this, memoryCache, diskCache, action);
-        hunter.future = service.submit(hunter);
+        hunter.setFuture(service.submit(hunter));
         hunterMap.put(action.getKey(), hunter);
+        //其实只要执行了performSubmit，就需要从failedActions移除，但是有些调用的地方，会在方法调用之外通过迭代器移除，不需要在这里移除
         if (dismissFailed) {
             failedActions.remove(action.getTarget());
         }
@@ -355,7 +357,7 @@ public class Dispatcher {
         }
 
         if (!canScansNetworkChanges || hasConnectivity) {
-            hunter.future = service.submit(hunter);
+            hunter.setFuture(service.submit(hunter));
             return;
         }
 

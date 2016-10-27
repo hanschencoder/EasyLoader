@@ -22,7 +22,11 @@ import com.hanschen.easyloader.callback.OnLoadListener;
 import com.hanschen.easyloader.downloader.Downloader;
 import com.hanschen.easyloader.downloader.OkHttp3Downloader;
 import com.hanschen.easyloader.log.EasyLoaderLog;
-import com.hanschen.easyloader.log.Logger;
+import com.hanschen.easyloader.request.AssetRequestHandler;
+import com.hanschen.easyloader.request.ContactsPhotoRequestHandler;
+import com.hanschen.easyloader.request.ContentStreamRequestHandler;
+import com.hanschen.easyloader.request.FileRequestHandler;
+import com.hanschen.easyloader.request.MediaStoreRequestHandler;
 import com.hanschen.easyloader.request.NetworkRequestHandler;
 import com.hanschen.easyloader.request.RequestCreator;
 import com.hanschen.easyloader.request.RequestHandler;
@@ -94,6 +98,11 @@ public class EasyLoader implements Provider {
 
         //初始化requestHandlers
         List<RequestHandler> allRequestHandlers = new ArrayList<>();
+        allRequestHandlers.add(new ContactsPhotoRequestHandler(context));
+        allRequestHandlers.add(new MediaStoreRequestHandler(context));
+        allRequestHandlers.add(new ContentStreamRequestHandler(context));
+        allRequestHandlers.add(new AssetRequestHandler(context));
+        allRequestHandlers.add(new FileRequestHandler(context));
         allRequestHandlers.add(new NetworkRequestHandler(downloader));
         if (extraRequestHandlers != null) {
             allRequestHandlers.addAll(extraRequestHandlers);
@@ -131,13 +140,13 @@ public class EasyLoader implements Provider {
                     @SuppressWarnings("unchecked") List<BitmapHunter> batch = (List<BitmapHunter>) msg.obj;
                     for (int i = 0, n = batch.size(); i < n; i++) {
                         BitmapHunter hunter = batch.get(i);
-                        hunter.loader.complete(hunter);
+                        hunter.getLoader().complete(hunter);
                     }
                     break;
                 }
                 case Dispatcher.REQUEST_GCED: {
                     Action action = (Action) msg.obj;
-                    action.loader.cancelExistingRequest(action.getTarget());
+                    action.getLoader().cancelExistingRequest(action.getTarget());
                     break;
                 }
                 case Dispatcher.REQUEST_BATCH_RESUME:
@@ -145,7 +154,7 @@ public class EasyLoader implements Provider {
                     //noinspection ForLoopReplaceableByForEach
                     for (int i = 0, n = batch.size(); i < n; i++) {
                         Action action = batch.get(i);
-                        action.loader.resumeAction(action);
+                        action.getLoader().resumeAction(action);
                     }
                     break;
                 default:
@@ -203,14 +212,19 @@ public class EasyLoader implements Provider {
         cancelExistingRequest(target);
     }
 
-    void complete(BitmapHunter hunter) {
+    /**
+     * 处理成功o或失败的请求
+     *
+     * @param hunter 待处理的请求
+     */
+    private void complete(BitmapHunter hunter) {
+
         Action single = hunter.getAction();
         List<Action> joined = hunter.getActions();
 
         boolean hasMultiple = joined != null && !joined.isEmpty();
-        boolean shouldDeliver = single != null || hasMultiple;
 
-        if (!shouldDeliver) {
+        if (single == null && !hasMultiple) {
             return;
         }
 
@@ -224,7 +238,6 @@ public class EasyLoader implements Provider {
         }
 
         if (hasMultiple) {
-            //noinspection ForLoopReplaceableByForEach
             for (int i = 0, n = joined.size(); i < n; i++) {
                 Action join = joined.get(i);
                 deliverAction(result, from, join);
@@ -265,10 +278,19 @@ public class EasyLoader implements Provider {
         }
     }
 
+    /**
+     * hunter结束后，处理action
+     *
+     * @param result 结果
+     * @param from   加载方式
+     * @param action action
+     */
     private void deliverAction(Bitmap result, LoadedFrom from, Action action) {
+        //再次检测下action是否被cancel了
         if (action.isCancelled()) {
             return;
         }
+        //willReplay默认为否，除非请求失败了，加入了联网重试列表
         if (!action.willReplay()) {
             targetToAction.remove(action.getTarget());
         }
@@ -333,15 +355,17 @@ public class EasyLoader implements Provider {
         if (singleton == null) {
             synchronized (EasyLoader.class) {
                 if (singleton == null) {
-                    singleton = new Builder(context).build();
+                    singleton = new Builder(context).downloader(new OkHttp3Downloader())
+                                                    .indicatorsEnabled(true)
+                                                    .logEnable(true)
+                                                    .maxMemoryCacheSize(60 * 1024 * 1024)// TODO: 2016/10/26 根据设备型号计算
+                                                    .maxDiskCacheSize(100 * 1024 * 1024)// TODO: 2016/10/26 根据存储状态自动计算
+                                                    .queueProcessType(QueueProcessType.LIFO)
+                                                    .build();
                 }
             }
         }
         return singleton;
-    }
-
-    private void apply(final Builder builder) {
-
     }
 
     public RequestCreator load(Uri uri) {
@@ -401,7 +425,7 @@ public class EasyLoader implements Provider {
         private final Context                      context;
         private       AdjustableExecutorService    service;
         private       boolean                      logEnable;
-        private       Logger                       logger;
+        private       boolean                      indicatorsEnabled;
         private       CacheManager<String, Bitmap> memoryCacheManager;
         private       CacheManager<String, Bitmap> diskCacheManager;
         private       File                         cacheDirectory;
@@ -411,10 +435,8 @@ public class EasyLoader implements Provider {
         private       Downloader                   downloader;
         private       QueueProcessType             queueProcessType;
         private       List<RequestHandler>         requestHandlers;
-        private       boolean                      indicatorsEnabled;
-        private       boolean                      loggingEnabled;
-        private long maxMemoryCacheSize = DEFAULT_MEMORY_CACHE_SIZE;// TODO: 2016/10/26 根据设备型号计算 
-        private long maxDiskCacheSize   = DEFAULT_DISK_CACHE_SIZE;// TODO: 2016/10/26 根据存储状态自动计算
+        private long maxMemoryCacheSize = DEFAULT_MEMORY_CACHE_SIZE;
+        private long maxDiskCacheSize   = DEFAULT_DISK_CACHE_SIZE;
 
         private Builder(Context context) {
             if (context == null) {
@@ -423,7 +445,72 @@ public class EasyLoader implements Provider {
             this.context = context.getApplicationContext();
         }
 
-        public EasyLoader build() {
+        Builder logEnable(boolean enable) {
+            this.logEnable = enable;
+            return this;
+        }
+
+        Builder indicatorsEnabled(boolean enable) {
+            this.indicatorsEnabled = enable;
+            return this;
+        }
+
+        Builder memoryCache(CacheManager<String, Bitmap> memoryCache) {
+            this.memoryCacheManager = memoryCache;
+            return this;
+        }
+
+        Builder diskCache(CacheManager<String, Bitmap> diskCache) {
+            this.diskCacheManager = diskCache;
+            return this;
+        }
+
+        Builder cacheDirectory(File cacheDir) {
+            this.cacheDirectory = cacheDir;
+            return this;
+        }
+
+        Builder onLoadListener(OnLoadListener onLoadListener) {
+            this.listener = onLoadListener;
+            return this;
+        }
+
+        Builder RequestTransformer(RequestTransformer transformer) {
+            this.transformer = transformer;
+            return this;
+        }
+
+        Builder defaultBitmapConfig(Bitmap.Config config) {
+            this.defaultBitmapConfig = config;
+            return this;
+        }
+
+        Builder downloader(Downloader downloader) {
+            this.downloader = downloader;
+            return this;
+        }
+
+        Builder queueProcessType(QueueProcessType queueProcessType) {
+            this.queueProcessType = queueProcessType;
+            return this;
+        }
+
+        public Builder requestHandlers(List<RequestHandler> handlers) {
+            this.requestHandlers = handlers;
+            return this;
+        }
+
+        Builder maxMemoryCacheSize(long maxMemoryCacheSize) {
+            this.maxMemoryCacheSize = maxMemoryCacheSize;
+            return this;
+        }
+
+        Builder maxDiskCacheSize(long maxDiskCacheSize) {
+            this.maxDiskCacheSize = maxDiskCacheSize;
+            return this;
+        }
+
+        EasyLoader build() {
 
             if (service == null) {
                 service = new AdjustableExecutorService();
@@ -447,26 +534,31 @@ public class EasyLoader implements Provider {
                 }
                 if (cacheDirectory != null) {
                     if (cacheDirectory.mkdirs() || (cacheDirectory.exists() && cacheDirectory.isDirectory())) {
-                        diskCacheManager = new LruDiskCache<>(cacheDirectory, maxDiskCacheSize, AppUtils.getVersionCode(context), new LruDiskCache.FileConverter<Bitmap>() {
-                            @Override
-                            public Bitmap readFrom(File file) {
-                                return BitmapFactory.decodeFile(file.getAbsolutePath(), null);
-                            }
+                        diskCacheManager = new LruDiskCache<>(cacheDirectory,
+                                                              maxDiskCacheSize,
+                                                              AppUtils.getVersionCode(context),
+                                                              new LruDiskCache.FileConverter<Bitmap>() {
+                                                                  @Override
+                                                                  public Bitmap readFrom(File file) {
+                                                                      return BitmapFactory.decodeFile(file.getAbsolutePath(),
+                                                                                                      null);
+                                                                  }
 
-                            @Override
-                            public boolean writeTo(Bitmap value, File to) {
-                                try {
-                                    BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(to));
-                                    value.compress(Bitmap.CompressFormat.JPEG, 100, bos);
-                                    bos.flush();
-                                    bos.close();
-                                    return true;
-                                } catch (IOException e) {
-                                    e.printStackTrace();
-                                }
-                                return false;
-                            }
-                        });
+                                                                  @Override
+                                                                  public boolean writeTo(Bitmap value, File to) {
+                                                                      try {
+                                                                          BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(
+                                                                                  to));
+                                                                          value.compress(Bitmap.CompressFormat.JPEG, 100, bos);
+                                                                          bos.flush();
+                                                                          bos.close();
+                                                                          return true;
+                                                                      } catch (IOException e) {
+                                                                          e.printStackTrace();
+                                                                      }
+                                                                      return false;
+                                                                  }
+                                                              });
                     }
 
                 }
@@ -484,9 +576,18 @@ public class EasyLoader implements Provider {
                 queueProcessType = QueueProcessType.LIFO;
             }
 
-            EasyLoader loader = new EasyLoader(context, service, memoryCacheManager, diskCacheManager, null, null, null, transformer, downloader, queueProcessType, true, true);
-            loader.apply(Builder.this);
-            return loader;
+            return new EasyLoader(context,
+                                  service,
+                                  memoryCacheManager,
+                                  diskCacheManager,
+                                  listener,
+                                  requestHandlers,
+                                  defaultBitmapConfig,
+                                  transformer,
+                                  downloader,
+                                  queueProcessType,
+                                  indicatorsEnabled,
+                                  logEnable);
         }
     }
 }

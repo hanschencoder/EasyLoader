@@ -22,13 +22,13 @@ import android.widget.ImageView;
 
 import com.hanschen.easyloader.Callback;
 import com.hanschen.easyloader.EasyLoader;
-import com.hanschen.easyloader.LoadedFrom;
 import com.hanschen.easyloader.EnhanceDrawable;
+import com.hanschen.easyloader.LoadedFrom;
 import com.hanschen.easyloader.request.Request;
 
 public class ImageViewAction extends Action<ImageView> {
 
-    Callback callback;
+    private Callback callback;
 
     public ImageViewAction(EasyLoader loader,
                            ImageView imageView,
@@ -47,6 +47,7 @@ public class ImageViewAction extends Action<ImageView> {
 
     @Override
     public void onComplete(Bitmap result, LoadedFrom from) {
+
         if (result == null) {
             throw new AssertionError(String.format("Attempted to onComplete action with no result!\n%s", this));
         }

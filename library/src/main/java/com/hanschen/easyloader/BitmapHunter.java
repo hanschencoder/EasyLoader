@@ -23,7 +23,6 @@ import android.net.NetworkInfo;
 import com.hanschen.easyloader.action.Action;
 import com.hanschen.easyloader.cache.CacheManager;
 import com.hanschen.easyloader.downloader.ResponseException;
-import com.hanschen.easyloader.log.EasyLoaderLog;
 import com.hanschen.easyloader.request.Request;
 import com.hanschen.easyloader.request.RequestHandler;
 import com.hanschen.easyloader.request.Result;
@@ -67,26 +66,28 @@ public class BitmapHunter implements Runnable {
 
     private static final AtomicInteger SEQUENCE_GENERATOR = new AtomicInteger();
 
-    final int                          sequence;
-    final EasyLoader                   loader;
-    final Dispatcher                   dispatcher;
-    final CacheManager<String, Bitmap> memoryCache;
-    final CacheManager<String, Bitmap> diskCache;
-    final String                       key;
-    final Request                      data;
-    final int                          memoryPolicy;
-    final int                          diskPolicy;
-    final RequestHandler               requestHandler;
-
-    Action       action;
-    List<Action> actions;
-    Bitmap       result;
-    Future<?>    future;
-    LoadedFrom   loadedFrom;
-    Exception    exception;
-    int          exifOrientation; // Determined during decoding of original resource.
-    int          retryCount;
-    Priority     priority;
+    private final EasyLoader                   loader;
+    private final Dispatcher                   dispatcher;
+    private final int                          sequence;
+    private final CacheManager<String, Bitmap> memoryCache;
+    private final CacheManager<String, Bitmap> diskCache;
+    private final String                       key;
+    private final Request                      data;
+    private final int                          memoryPolicy;
+    private final int                          diskPolicy;
+    private final RequestHandler               requestHandler;
+    /**
+     * 相同请求会放入这个列表
+     */
+    private       Action                       action;
+    private       List<Action>                 actions;
+    private       Bitmap                       result;
+    private       Future<?>                    future;
+    private       LoadedFrom                   loadedFrom;
+    private       Exception                    exception;
+    private       int                          exifOrientation; // Determined during decoding of original resource.
+    private       int                          retryCount;
+    private       Priority                     priority;
 
     private BitmapHunter(EasyLoader loader,
                          Dispatcher dispatcher,
@@ -172,11 +173,10 @@ public class BitmapHunter implements Runnable {
 
     @Override
     public void run() {
+
+        updateThreadName(data);
         try {
-            updateThreadName(data);
-
             result = hunt();
-
             if (result == null) {
                 dispatcher.dispatchFailed(this);
             } else {
@@ -200,6 +200,16 @@ public class BitmapHunter implements Runnable {
         } finally {
             Thread.currentThread().setName(Utils.THREAD_IDLE_NAME);
         }
+    }
+
+    private static void updateThreadName(Request request) {
+
+        String name = request.getName();
+        StringBuilder builder = NAME_BUILDER.get();
+        builder.ensureCapacity(Utils.THREAD_PREFIX.length() + name.length());
+        builder.replace(Utils.THREAD_PREFIX.length(), builder.length(), name);
+
+        Thread.currentThread().setName(builder.toString());
     }
 
     /**
@@ -261,152 +271,7 @@ public class BitmapHunter implements Runnable {
         return bitmap;
     }
 
-    void attach(Action action) {
-        EasyLoaderLog.d("BitmapHunter", "attach: " + action.getRequest().toString());
-        if (this.action == null) {
-            this.action = action;
-            return;
-        }
-
-        if (actions == null) {
-            actions = new ArrayList<>(3);
-        }
-
-        actions.add(action);
-
-        Priority actionPriority = action.getPriority();
-        if (actionPriority.ordinal() > priority.ordinal()) {
-            priority = actionPriority;
-        }
-    }
-
-    void detach(Action action) {
-        EasyLoaderLog.d("BitmapHunter", "detach: " + action.getRequest().toString());
-        boolean detached = false;
-        if (this.action == action) {
-            this.action = null;
-            detached = true;
-        } else if (actions != null) {
-            detached = actions.remove(action);
-        }
-
-        // The action being detached had the highest priority. Update this
-        // hunter's priority with the remaining actions.
-        if (detached && action.getPriority() == priority) {
-            priority = computeNewPriority();
-        }
-    }
-
-    private Priority computeNewPriority() {
-        Priority newPriority = Priority.LOW;
-
-        boolean hasMultiple = actions != null && !actions.isEmpty();
-        boolean hasAny = action != null || hasMultiple;
-
-        // Hunter has no requests, low priority.
-        if (!hasAny) {
-            return newPriority;
-        }
-
-        if (action != null) {
-            newPriority = action.getPriority();
-        }
-
-        if (hasMultiple) {
-            //noinspection ForLoopReplaceableByForEach
-            for (int i = 0, n = actions.size(); i < n; i++) {
-                Priority actionPriority = actions.get(i).getPriority();
-                if (actionPriority.ordinal() > newPriority.ordinal()) {
-                    newPriority = actionPriority;
-                }
-            }
-        }
-
-        return newPriority;
-    }
-
-    boolean cancel() {
-        return action == null && (actions == null || actions.isEmpty()) && future != null && future.cancel(false);
-    }
-
-    boolean isCancelled() {
-        return future != null && future.isCancelled();
-    }
-
-    /**
-     * 根据网络状态以及已重试次数，返回是否需要继续尝试发起请求
-     *
-     * @param airplaneMode 飞行模式
-     * @param info         网络状态
-     * @return 是否重试
-     */
-    boolean shouldRetry(boolean airplaneMode, NetworkInfo info) {
-        if (retryCount <= 0) {
-            return false;
-        }
-        retryCount--;
-        return requestHandler.shouldRetry(airplaneMode, info);
-    }
-
-    boolean supportsReplay() {
-        return requestHandler.supportsReplay();
-    }
-
-    Bitmap getResult() {
-        return result;
-    }
-
-    String getKey() {
-        return key;
-    }
-
-    int getMemoryPolicy() {
-        return memoryPolicy;
-    }
-
-    int getDiskPolicy() {
-        return diskPolicy;
-    }
-
-    Request getData() {
-        return data;
-    }
-
-    public Action getAction() {
-        return action;
-    }
-
-    EasyLoader getLoader() {
-        return loader;
-    }
-
-    public List<Action> getActions() {
-        return actions;
-    }
-
-    Exception getException() {
-        return exception;
-    }
-
-    LoadedFrom getLoadedFrom() {
-        return loadedFrom;
-    }
-
-    Priority getPriority() {
-        return priority;
-    }
-
-    static void updateThreadName(Request data) {
-        String name = data.getName();
-
-        StringBuilder builder = NAME_BUILDER.get();
-        builder.ensureCapacity(Utils.THREAD_PREFIX.length() + name.length());
-        builder.replace(Utils.THREAD_PREFIX.length(), builder.length(), name);
-
-        Thread.currentThread().setName(builder.toString());
-    }
-
-    static Bitmap applyCustomTransformations(List<Transformation> transformations, Bitmap result) {
+    private static Bitmap applyCustomTransformations(List<Transformation> transformations, Bitmap result) {
         for (int i = 0, count = transformations.size(); i < count; i++) {
             final Transformation transformation = transformations.get(i);
             Bitmap newResult;
@@ -466,7 +331,7 @@ public class BitmapHunter implements Runnable {
         return result;
     }
 
-    static Bitmap transformResult(Request data, Bitmap result, int exifOrientation) {
+    private static Bitmap transformResult(Request data, Bitmap result, int exifOrientation) {
         int inWidth = result.getWidth();
         int inHeight = result.getHeight();
         boolean onlyScaleDown = data.onlyScaleDown;
@@ -603,7 +468,7 @@ public class BitmapHunter implements Runnable {
         return !onlyScaleDown || inWidth > targetWidth || inHeight > targetHeight;
     }
 
-    static int getExifRotation(int orientation) {
+    private static int getExifRotation(int orientation) {
         int rotation;
         switch (orientation) {
             case ORIENTATION_ROTATE_90:
@@ -624,7 +489,7 @@ public class BitmapHunter implements Runnable {
         return rotation;
     }
 
-    static int getExifTranslation(int orientation) {
+    private static int getExifTranslation(int orientation) {
         int translation;
         switch (orientation) {
             case ORIENTATION_FLIP_HORIZONTAL:
@@ -637,6 +502,161 @@ public class BitmapHunter implements Runnable {
                 translation = 1;
         }
         return translation;
+    }
+
+    /**
+     * 相同URL请求，会通过attach方法把后来的请求放到已有请求中去
+     */
+    void attach(Action action) {
+        if (this.action == null) {
+            this.action = action;
+            return;
+        }
+
+        if (actions == null) {
+            actions = new ArrayList<>(3);
+        }
+
+        actions.add(action);
+
+        //若新attach的请求优先级比较高，则提高优先级
+        Priority actionPriority = action.getPriority();
+        if (actionPriority.ordinal() > priority.ordinal()) {
+            priority = actionPriority;
+        }
+    }
+
+    /**
+     * 把action从该hunter中解绑
+     *
+     * @param action 需要解绑的action
+     */
+    void detach(Action action) {
+        boolean detached = false;
+        if (this.action == action) {
+            this.action = null;
+            detached = true;
+        } else if (actions != null) {
+            detached = actions.remove(action);
+        }
+
+        //重新计算优先级
+        if (detached/* && action.getPriority() == priority*/) {
+            priority = computeNewPriority();
+        }
+    }
+
+    /**
+     * 重新计算优先级，遍历action以及attach到这个Hunter的action，以最高优先级为最新优先级
+     */
+    private Priority computeNewPriority() {
+
+        Priority newPriority = Priority.LOW;
+        boolean hasMultiple = actions != null && !actions.isEmpty();
+        boolean hasAny = action != null || hasMultiple;
+
+        if (!hasAny) {
+            return newPriority;
+        }
+
+        if (action != null) {
+            newPriority = action.getPriority();
+        }
+
+        if (hasMultiple) {
+            for (int i = 0, n = actions.size(); i < n; i++) {
+                Priority actionPriority = actions.get(i).getPriority();
+                if (actionPriority.ordinal() > newPriority.ordinal()) {
+                    newPriority = actionPriority;
+                }
+            }
+        }
+
+        return newPriority;
+    }
+
+    /**
+     * 若action为空且没有其他action绑定到这个这个hunter，就尝试执行{@link Future#cancel(boolean)}
+     *
+     * @return future是否取消成功
+     */
+    boolean cancel() {
+        return action == null && (actions == null || actions.isEmpty()) && future != null && future.cancel(false);
+    }
+
+    boolean isCancelled() {
+        return future != null && future.isCancelled();
+    }
+
+    /**
+     * 根据网络状态以及已重试次数，返回是否需要继续尝试发起请求
+     *
+     * @param airplaneMode 飞行模式
+     * @param info         网络状态
+     * @return 是否重试
+     */
+    boolean shouldRetry(boolean airplaneMode, NetworkInfo info) {
+        if (retryCount <= 0) {
+            return false;
+        }
+        retryCount--;
+        return requestHandler.shouldRetry(airplaneMode, info);
+    }
+
+    boolean supportsReplay() {
+        return requestHandler.supportsReplay();
+    }
+
+    void setFuture(Future<?> future) {
+        this.future = future;
+    }
+
+    Bitmap getResult() {
+        return result;
+    }
+
+    String getKey() {
+        return key;
+    }
+
+    int getMemoryPolicy() {
+        return memoryPolicy;
+    }
+
+    int getDiskPolicy() {
+        return diskPolicy;
+    }
+
+    Request getData() {
+        return data;
+    }
+
+    public Action getAction() {
+        return action;
+    }
+
+    EasyLoader getLoader() {
+        return loader;
+    }
+
+    List<Action> getActions() {
+        return actions;
+    }
+
+    Exception getException() {
+        return exception;
+    }
+
+    LoadedFrom getLoadedFrom() {
+        return loadedFrom;
+    }
+
+    Priority getPriority() {
+        return priority;
+    }
+
+    int getSequence() {
+        return sequence;
     }
 }
 

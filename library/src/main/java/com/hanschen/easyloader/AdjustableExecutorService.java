@@ -115,9 +115,9 @@ class AdjustableExecutorService extends ThreadPoolExecutor {
 
             if (own == other) {
                 if (hunter.getLoader().getQueueProcessType() == QueueProcessType.FIFO) {
-                    return hunter.sequence - another.hunter.sequence;
+                    return hunter.getSequence() - another.hunter.getSequence();
                 } else {
-                    return another.hunter.sequence - hunter.sequence;
+                    return another.hunter.getSequence() - hunter.getSequence();
                 }
             } else {
                 return other.ordinal() - own.ordinal();
