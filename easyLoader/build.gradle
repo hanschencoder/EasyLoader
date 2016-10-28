@@ -44,7 +44,7 @@ def gitUrl = 'https://github.com/shensky711/EasyLoader.git'
 def libraryName = 'EasyLoader'
 def description = 'An easy image loader for Android'
 group = 'site.hanschen'
-version = '1.0.0'
+version = '1.0.1'
 
 install {
     repositories.mavenInstaller {
