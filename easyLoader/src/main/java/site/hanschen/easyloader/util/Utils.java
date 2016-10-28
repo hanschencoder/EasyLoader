@@ -28,12 +28,12 @@ import android.os.Process;
 import android.os.StatFs;
 import android.provider.Settings;
 
-import site.hanschen.easyloader.request.Request;
-
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+
+import site.hanschen.easyloader.request.Request;
 
 import static android.content.Context.ACTIVITY_SERVICE;
 import static android.content.pm.ApplicationInfo.FLAG_LARGE_HEAP;
@@ -111,7 +111,7 @@ final public class Utils {
     }
 
     @TargetApi(JELLY_BEAN_MR2)
-    static long calculateDiskCacheSize(File dir) {
+    public static long calculateDiskCacheSize(File dir) {
         long size = MIN_DISK_CACHE_SIZE;
 
         try {
@@ -130,7 +130,7 @@ final public class Utils {
         return Math.max(Math.min(size, MAX_DISK_CACHE_SIZE), MIN_DISK_CACHE_SIZE);
     }
 
-    static int calculateMemoryCacheSize(Context context) {
+    public static int calculateMemoryCacheSize(Context context) {
         ActivityManager am = getService(context, ACTIVITY_SERVICE);
         boolean largeHeap = (context.getApplicationInfo().flags & FLAG_LARGE_HEAP) != 0;
         int memoryClass = am.getMemoryClass();

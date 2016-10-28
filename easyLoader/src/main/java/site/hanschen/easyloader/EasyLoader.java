@@ -60,6 +60,7 @@ import site.hanschen.easyloader.request.RequestTransformer;
 import site.hanschen.easyloader.request.ResourceRequestHandler;
 import site.hanschen.easyloader.util.AppUtils;
 import site.hanschen.easyloader.util.BitmapUtils;
+import site.hanschen.easyloader.util.Utils;
 
 import static android.os.Process.THREAD_PRIORITY_BACKGROUND;
 import static site.hanschen.easyloader.MemoryPolicy.shouldReadFromMemoryCache;
@@ -471,9 +472,6 @@ public class EasyLoader implements Provider {
 
     private static class Builder {
 
-        private static final long DEFAULT_DISK_CACHE_SIZE   = 250 * 1024 * 1024;
-        private static final long DEFAULT_MEMORY_CACHE_SIZE = 60 * 1024 * 1024;
-
         private final Context                      context;
         private       AdjustableExecutorService    service;
         private       boolean                      logEnable;
@@ -487,8 +485,8 @@ public class EasyLoader implements Provider {
         private       Downloader                   downloader;
         private       QueueProcessType             queueProcessType;
         private       List<RequestHandler>         requestHandlers;
-        private long maxMemoryCacheSize = DEFAULT_MEMORY_CACHE_SIZE;
-        private long maxDiskCacheSize   = DEFAULT_DISK_CACHE_SIZE;
+        private       long                         maxMemoryCacheSize;
+        private       long                         maxDiskCacheSize;
 
         private Builder(Context context) {
             if (context == null) {
@@ -568,6 +566,10 @@ public class EasyLoader implements Provider {
                 service = new AdjustableExecutorService();
             }
 
+            if (maxMemoryCacheSize == 0) {
+                maxMemoryCacheSize = Utils.calculateMemoryCacheSize(context);
+            }
+
             if (memoryCacheManager == null) {
                 memoryCacheManager = new LruMemoryCache<>(maxMemoryCacheSize, new SizeCalculator<Bitmap>() {
                     @Override
@@ -586,6 +588,9 @@ public class EasyLoader implements Provider {
                 }
                 if (cacheDirectory != null) {
                     if (cacheDirectory.mkdirs() || (cacheDirectory.exists() && cacheDirectory.isDirectory())) {
+                        if (maxDiskCacheSize == 0) {
+                            maxDiskCacheSize = Utils.calculateDiskCacheSize(cacheDirectory);
+                        }
                         diskCacheManager = new LruDiskCache<>(cacheDirectory,
                                                               maxDiskCacheSize,
                                                               AppUtils.getVersionCode(context),
