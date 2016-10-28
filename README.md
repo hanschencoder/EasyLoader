@@ -22,7 +22,7 @@
 # 如何添加EasyLoader依赖
 通过Gradle构建：
 ```
-compile 'site.hanschen:easyLoader:1.0.0'
+compile 'site.hanschen:easyLoader:1.0.1'
 ```
 
 通过Maven构建：
@@ -30,14 +30,14 @@ compile 'site.hanschen:easyLoader:1.0.0'
 <dependency>
   <groupId>site.hanschen</groupId>
   <artifactId>easyLoader</artifactId>
-  <version>1.0.0</version>
+  <version>1.0.1</version>
   <type>pom</type>
 </dependency>
 ```
 
 通过Ivy构建：
 ```
-<dependency org='site.hanschen' name='easyLoader' rev='1.0.0'>
+<dependency org='site.hanschen' name='easyLoader' rev='1.0.1'>
   <artifact name='$AID' ext='pom'></artifact>
 </dependency>
 ```
