@@ -1,13 +1,13 @@
 ext {
-    compileSdkVersion = 23
-    buildToolsVersion = '23.0.3'
+    compileSdkVersion = 25
+    buildToolsVersion = '25.0.1'
     minSdkVersion = 14
     targetSdkVersion = 21
     sourceCompatibilityVersion = JavaVersion.VERSION_1_7
     targetCompatibilityVersion = JavaVersion.VERSION_1_7
 
     okhttp3Version = '3.0.1'
-    supportLibrariesVersion = '23.0.0'
+    supportLibrariesVersion = '25.1.0'
     dependencies = [
             okhttp            : 'com.squareup.okhttp:okhttp:2.7.1',
             okhttp3           : "com.squareup.okhttp3:okhttp:$okhttp3Version",

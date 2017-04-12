@@ -1,4 +1,7 @@
-# EasyLoader是什么
+# EasyLoader
+[![Build Status](https://travis-ci.org/shensky711/EasyLoader.svg?branch=master)](https://travis-ci.org/shensky711/EasyLoader)
+
+# 描述
 一个Android上使用的图片异步加载框架，可快速加载图片。这个库参考了Picasso的设计，API使用和Picasso很相似，开发者可以快速地切换过来。运行效果如下：
 
 ![demo1](https://github.com/shensky711/EasyLoader/blob/master/picture/example1.jpg)
